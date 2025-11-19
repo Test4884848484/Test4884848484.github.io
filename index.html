@@ -4,23 +4,343 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Telegram Web App</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: white;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .container {
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            max-width: 400px;
+            width: 100%;
+            text-align: center;
+        }
+
+        .user-header {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 25px;
+            gap: 15px;
+        }
+
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            object-fit: cover;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+        }
+
+        .avatar-placeholder {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, #ff6b6b, #4ecdc4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2em;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+        }
+
+        .user-info-text {
+            text-align: left;
+        }
+
+        .user-info-text h2 {
+            margin-bottom: 5px;
+            font-size: 1.4em;
+        }
+
+        .user-info-text p {
+            opacity: 0.8;
+            font-size: 0.9em;
+        }
+
+        .user-card {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }
+
+        .user-details {
+            text-align: left;
+        }
+
+        .user-detail {
+            margin: 12px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .detail-label {
+            font-weight: bold;
+            opacity: 0.9;
+        }
+
+        .detail-value {
+            opacity: 1;
+        }
+
+        .btn {
+            background: #0088cc;
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 25px;
+            font-size: 1em;
+            cursor: pointer;
+            margin: 8px 5px;
+            transition: all 0.3s ease;
+            flex: 1;
+        }
+
+        .btn:hover {
+            background: #006699;
+            transform: translateY(-2px);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .loading {
+            opacity: 0.7;
+        }
+
+        .status-online {
+            color: #4cd964;
+            font-size: 0.8em;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>👋 Привет!</h1>
-        </div>
-        <div class="user-info">
-            <div id="userData">
-                <p><strong>Имя пользователя:</strong> <span id="username">Загрузка...</span></p>
-                <p><strong>Имя:</strong> <span id="firstName">Загрузка...</span></p>
-                <p><strong>Фамилия:</strong> <span id="lastName">Загрузка...</span></p>
+        <!-- Шапка с аватаром -->
+        <div class="user-header">
+            <div id="avatarContainer">
+                <!-- Аватар будет загружен сюда -->
+            </div>
+            <div class="user-info-text">
+                <h2 id="userName">Пользователь</h2>
+                <p id="userStatus" class="status-online">● онлайн в Telegram</p>
             </div>
         </div>
-        <button onclick="showAlert()" class="btn">Нажми меня!</button>
+        
+        <!-- Загрузка -->
+        <div id="loading" class="user-card">
+            <p>Загрузка данных пользователя...</p>
+        </div>
+        
+        <!-- Данные пользователя -->
+        <div id="userData" class="user-card hidden">
+            <div class="user-details">
+                <div class="user-detail">
+                    <span class="detail-label">ID:</span>
+                    <span class="detail-value" id="userId"></span>
+                </div>
+                <div class="user-detail">
+                    <span class="detail-label">Имя:</span>
+                    <span class="detail-value" id="firstName"></span>
+                </div>
+                <div class="user-detail">
+                    <span class="detail-label">Фамилия:</span>
+                    <span class="detail-value" id="lastName"></span>
+                </div>
+                <div class="user-detail">
+                    <span class="detail-label">Username:</span>
+                    <span class="detail-value" id="username"></span>
+                </div>
+                <div class="user-detail">
+                    <span class="detail-label">Язык:</span>
+                    <span class="detail-value" id="language"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ошибка -->
+        <div id="error" class="user-card hidden">
+            <p>❌ Не удалось загрузить данные пользователя</p>
+            <p>Откройте это приложение через Telegram бота</p>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="buttons">
+            <button onclick="showAlert()" class="btn">Показать alert</button>
+            <button onclick="closeApp()" class="btn btn-secondary">Закрыть</button>
+        </div>
     </div>
-    <script src="script.js"></script>
+
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script>
+        // Инициализация Telegram Web App
+        const tg = window.Telegram.WebApp;
+        
+        // Расширяем на весь экран
+        tg.expand();
+        tg.ready();
+        
+        // Получаем данные пользователя
+        const user = tg.initDataUnsafe?.user;
+        
+        // Элементы DOM
+        const loadingElement = document.getElementById('loading');
+        const userDataElement = document.getElementById('userData');
+        const errorElement = document.getElementById('error');
+        const avatarContainer = document.getElementById('avatarContainer');
+        const userNameElement = document.getElementById('userName');
+        
+        // Функция для создания аватара
+        function createUserAvatar(user) {
+            if (user.photo_url) {
+                // Если есть URL аватара, создаем изображение
+                const img = document.createElement('img');
+                img.src = user.photo_url;
+                img.alt = 'Аватар пользователя';
+                img.className = 'avatar';
+                img.onerror = function() {
+                    // Если изображение не загрузилось, показываем placeholder
+                    showAvatarPlaceholder(user);
+                };
+                avatarContainer.appendChild(img);
+            } else {
+                // Если нет аватара, показываем placeholder с инициалами
+                showAvatarPlaceholder(user);
+            }
+        }
+        
+        // Функция для показа placeholder аватара
+        function showAvatarPlaceholder(user) {
+            const placeholder = document.createElement('div');
+            placeholder.className = 'avatar-placeholder';
+            
+            // Получаем инициалы из имени и фамилии
+            const firstName = user.first_name || '';
+            const lastName = user.last_name || '';
+            let initials = '';
+            
+            if (firstName) initials += firstName[0].toUpperCase();
+            if (lastName) initials += lastName[0].toUpperCase();
+            
+            if (!initials) {
+                // Если нет имени, используем первую букву username
+                initials = user.username ? user.username[0].toUpperCase() : 'U';
+            }
+            
+            placeholder.textContent = initials;
+            avatarContainer.appendChild(placeholder);
+        }
+        
+        // Функция для форматирования имени
+        function formatUserName(user) {
+            const firstName = user.first_name || '';
+            const lastName = user.last_name || '';
+            
+            if (firstName && lastName) {
+                return `${firstName} ${lastName}`;
+            } else if (firstName) {
+                return firstName;
+            } else if (user.username) {
+                return `@${user.username}`;
+            } else {
+                return 'Пользователь';
+            }
+        }
+        
+        // Отображаем данные пользователя
+        if (user) {
+            // Создаем аватар
+            createUserAvatar(user);
+            
+            // Устанавливаем имя
+            userNameElement.textContent = formatUserName(user);
+            
+            // Заполняем остальные данные
+            document.getElementById('userId').textContent = user.id || 'Не указан';
+            document.getElementById('firstName').textContent = user.first_name || 'Не указано';
+            document.getElementById('lastName').textContent = user.last_name || 'Не указано';
+            document.getElementById('username').textContent = user.username ? `@${user.username}` : 'Не указан';
+            document.getElementById('language').textContent = user.language_code || 'Не указан';
+            
+            loadingElement.classList.add('hidden');
+            userDataElement.classList.remove('hidden');
+            
+            // Можно также получить больше данных через tg.initDataUnsafe
+            console.log('Все данные пользователя:', user);
+            console.log('Полные initData:', tg.initDataUnsafe);
+            
+        } else {
+            // Если данных пользователя нет, показываем ошибку
+            loadingElement.classList.add('hidden');
+            errorElement.classList.remove('hidden');
+            
+            // Создаем placeholder аватар для ошибки
+            const placeholder = document.createElement('div');
+            placeholder.className = 'avatar-placeholder';
+            placeholder.textContent = '?';
+            avatarContainer.appendChild(placeholder);
+        }
+        
+        // Функции для кнопок
+        function showAlert() {
+            const userName = user ? formatUserName(user) : 'Пользователь';
+            tg.showAlert(`Привет, ${userName}! 🎉`);
+        }
+        
+        function closeApp() {
+            tg.close();
+        }
+        
+        // Обработчик кнопки "Назад"
+        tg.BackButton.onClick(() => {
+            tg.close();
+        });
+        
+        // Показываем кнопку "Назад"
+        tg.BackButton.show();
+        
+        // Меняем цвет шапки Telegram (опционально)
+        tg.setHeaderColor('secondary_bg_color');
+        tg.setBackgroundColor('#667eea');
+    </script>
 </body>
 </html>
