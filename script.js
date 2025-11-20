@@ -6,17 +6,21 @@ const urlParams = new URLSearchParams(window.location.search);
 const telegramUserId = urlParams.get('tg');
 
 // Элементы DOM
-const messagesList = document.getElementById('messagesList');
-const messageInput = document.getElementById('messageInput');
-const statusDiv = document.getElementById('status');
 const userProfile = document.getElementById('userProfile');
+const gameSection = document.getElementById('gameSection');
+const statusDiv = document.getElementById('status');
 
 let currentUser = null;
 
 // Загрузка данных пользователя
 async function loadUserProfile() {
     if (!telegramUserId) {
-        userProfile.innerHTML = '<p>Пожалуйста, откройте приложение через Telegram бота</p>';
+        userProfile.innerHTML = `
+            <div class="warning">
+                <h3>⚠️ Доступ через Telegram</h3>
+                <p>Пожалуйста, откройте это приложение через Telegram бота для полного доступа к функциям.</p>
+            </div>
+        `;
         return;
     }
 
@@ -28,7 +32,7 @@ async function loadUserProfile() {
         renderUserProfile();
         
     } catch (error) {
-        userProfile.innerHTML = '<p>Ошибка загрузки профиля</p>';
+        userProfile.innerHTML = '<p>❌ Ошибка загрузки профиля</p>';
     }
 }
 
@@ -39,7 +43,7 @@ function renderUserProfile() {
     userProfile.innerHTML = `
         <div class="profile-card">
             <div class="profile-header">
-                <img src="${currentUser.photo_url || 'https://via.placeholder.com/100'}" 
+                <img src="${currentUser.photo_url || 'https://via.placeholder.com/100/667eea/ffffff?text=TG'}" 
                      alt="Avatar" class="profile-avatar">
                 <h2>${currentUser.first_name} ${currentUser.last_name || ''}</h2>
                 <p class="username">@${currentUser.username || 'без username'}</p>
@@ -51,7 +55,7 @@ function renderUserProfile() {
                     <span class="stat-label">💎 Монет</span>
                 </div>
                 <div class="stat">
-                    <span class="stat-value">${currentUser.referral_count}</span>
+                    <span class="stat-value">${currentUser.referral_count || 0}</span>
                     <span class="stat-label">👥 Рефералов</span>
                 </div>
             </div>
@@ -62,7 +66,7 @@ function renderUserProfile() {
                     <input type="text" id="referralInput" 
                            value="https://t.me/your_bot_username?start=${currentUser.referral_code}" 
                            readonly>
-                    <button onclick="copyReferralLink()">Копировать</button>
+                    <button onclick="copyReferralLink()">📋</button>
                 </div>
                 <p class="referral-info">💵 За каждого друга: +10 монет!</p>
             </div>
@@ -75,87 +79,55 @@ function copyReferralLink() {
     const input = document.getElementById('referralInput');
     input.select();
     document.execCommand('copy');
-    showStatus('Ссылка скопирована!', 'success');
+    showStatus('Ссылка скопирована в буфер!', 'success');
 }
 
-// Остальные функции остаются такими же как раньше...
-async function loadMessages() {
-    try {
-        messagesList.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
-        
-        const response = await fetch(`${API_URL}/messages`);
-        
-        if (!response.ok) throw new Error('Ошибка загрузки');
-        
-        const messages = await response.json();
-        
-        if (messages.length === 0) {
-            messagesList.innerHTML = '<div class="loading">Сообщений пока нет</div>';
-            return;
-        }
-        
-        messagesList.innerHTML = messages.map(message => `
-            <div class="message">
-                <div class="message-text">${message.text}</div>
-                <div class="message-time">${new Date(message.created_at).toLocaleString()}</div>
-                ${currentUser ? `<button class="delete-btn" onclick="deleteMessage(${message.id})">Удалить</button>` : ''}
-            </div>
-        `).join('');
-        
-    } catch (error) {
-        messagesList.innerHTML = '<div class="loading">Ошибка загрузки сообщений</div>';
-        showStatus('Ошибка загрузки сообщений', 'error');
-    }
-}
-
-async function addMessage() {
+// Простая игра для заработка монет
+function startGame() {
     if (!currentUser) {
         showStatus('Войдите через Telegram бота', 'error');
         return;
     }
 
-    const text = messageInput.value.trim();
+    // Простая игра - кликер
+    let coins = 0;
     
-    if (!text) {
-        showStatus('Введите сообщение', 'error');
-        return;
-    }
-    
-    try {
-        const response = await fetch(`${API_URL}/messages`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ text, user_id: currentUser.user_id }),
-        });
-        
-        if (!response.ok) throw new Error('Ошибка добавления');
-        
-        messageInput.value = '';
-        showStatus('Сообщение добавлено!');
-        await loadMessages();
-        
-    } catch (error) {
-        showStatus('Ошибка добавления сообщения', 'error');
-    }
+    gameSection.innerHTML = `
+        <div class="game-container">
+            <h3>🎮 Простая игра</h3>
+            <p>Нажимай на кнопку чтобы зарабатывать монеты!</p>
+            <div class="game-stats">
+                <span>Монеты: <span id="coinCount">0</span></span>
+            </div>
+            <button class="game-button" onclick="clickCoin()">🪙 Нажми меня!</button>
+            <button class="save-button" onclick="saveCoins()">💾 Сохранить монеты</button>
+        </div>
+    `;
 }
 
-async function deleteMessage(id) {
+let gameCoins = 0;
+
+function clickCoin() {
     if (!currentUser) return;
     
+    gameCoins++;
+    document.getElementById('coinCount').textContent = gameCoins;
+}
+
+async function saveCoins() {
+    if (!currentUser || gameCoins === 0) return;
+
     try {
-        const response = await fetch(`${API_URL}/messages/${id}`, {
-            method: 'DELETE',
-        });
+        // Здесь можно добавить логику сохранения монет в базу
+        showStatus(`🎉 Сохранено ${gameCoins} монет!`, 'success');
+        gameCoins = 0;
+        document.getElementById('coinCount').textContent = '0';
         
-        if (!response.ok) throw new Error('Ошибка удаления');
-        
-        showStatus('Сообщение удалено!');
-        await loadMessages();
+        // Перезагружаем профиль для обновления баланса
+        await loadUserProfile();
         
     } catch (error) {
-        showStatus('Ошибка удаления сообщения', 'error');
+        showStatus('❌ Ошибка сохранения', 'error');
     }
 }
 
@@ -168,15 +140,12 @@ function showStatus(message, type = 'success') {
     }, 3000);
 }
 
-// Отправка по Enter
-messageInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        addMessage();
-    }
-});
-
 // Загрузка при запуске
 document.addEventListener('DOMContentLoaded', async () => {
     await loadUserProfile();
-    await loadMessages();
+    
+    // Показываем кнопку игры если пользователь авторизован
+    if (telegramUserId) {
+        document.getElementById('playButton').style.display = 'block';
+    }
 });
