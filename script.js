@@ -1,22 +1,84 @@
-// 🔧 КОНФИГУРАЦИЯ - ТВОЙ URL БЭКЕНДА
+// 🔧 КОНФИГУРАЦИЯ
 const API_URL = 'https://my-backend-production-9034.up.railway.app/api';
+
+// Получаем параметры из URL
+const urlParams = new URLSearchParams(window.location.search);
+const telegramUserId = urlParams.get('tg');
 
 // Элементы DOM
 const messagesList = document.getElementById('messagesList');
 const messageInput = document.getElementById('messageInput');
 const statusDiv = document.getElementById('status');
+const userProfile = document.getElementById('userProfile');
 
-// Показать статус
-function showStatus(message, type = 'success') {
-    statusDiv.textContent = message;
-    statusDiv.className = `status ${type}`;
-    setTimeout(() => {
-        statusDiv.textContent = '';
-        statusDiv.className = 'status';
-    }, 3000);
+let currentUser = null;
+
+// Загрузка данных пользователя
+async function loadUserProfile() {
+    if (!telegramUserId) {
+        userProfile.innerHTML = '<p>Пожалуйста, откройте приложение через Telegram бота</p>';
+        return;
+    }
+
+    try {
+        const response = await fetch(`${API_URL}/user/${telegramUserId}`);
+        if (!response.ok) throw new Error('Ошибка загрузки профиля');
+        
+        currentUser = await response.json();
+        renderUserProfile();
+        
+    } catch (error) {
+        userProfile.innerHTML = '<p>Ошибка загрузки профиля</p>';
+    }
 }
 
-// Загрузить сообщения
+// Отображение профиля пользователя
+function renderUserProfile() {
+    if (!currentUser) return;
+
+    userProfile.innerHTML = `
+        <div class="profile-card">
+            <div class="profile-header">
+                <img src="${currentUser.photo_url || 'https://via.placeholder.com/100'}" 
+                     alt="Avatar" class="profile-avatar">
+                <h2>${currentUser.first_name} ${currentUser.last_name || ''}</h2>
+                <p class="username">@${currentUser.username || 'без username'}</p>
+            </div>
+            
+            <div class="profile-stats">
+                <div class="stat">
+                    <span class="stat-value">${currentUser.balance}</span>
+                    <span class="stat-label">💎 Монет</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">${currentUser.referral_count}</span>
+                    <span class="stat-label">👥 Рефералов</span>
+                </div>
+            </div>
+            
+            <div class="referral-section">
+                <h3>🔗 Реферальная ссылка</h3>
+                <div class="referral-link">
+                    <input type="text" id="referralInput" 
+                           value="https://t.me/your_bot_username?start=${currentUser.referral_code}" 
+                           readonly>
+                    <button onclick="copyReferralLink()">Копировать</button>
+                </div>
+                <p class="referral-info">💵 За каждого друга: +10 монет!</p>
+            </div>
+        </div>
+    `;
+}
+
+// Копирование реферальной ссылки
+function copyReferralLink() {
+    const input = document.getElementById('referralInput');
+    input.select();
+    document.execCommand('copy');
+    showStatus('Ссылка скопирована!', 'success');
+}
+
+// Остальные функции остаются такими же как раньше...
 async function loadMessages() {
     try {
         messagesList.innerHTML = '<div class="loading">Загрузка сообщений...</div>';
@@ -36,7 +98,7 @@ async function loadMessages() {
             <div class="message">
                 <div class="message-text">${message.text}</div>
                 <div class="message-time">${new Date(message.created_at).toLocaleString()}</div>
-                <button class="delete-btn" onclick="deleteMessage(${message.id})">Удалить</button>
+                ${currentUser ? `<button class="delete-btn" onclick="deleteMessage(${message.id})">Удалить</button>` : ''}
             </div>
         `).join('');
         
@@ -46,8 +108,12 @@ async function loadMessages() {
     }
 }
 
-// Добавить сообщение
 async function addMessage() {
+    if (!currentUser) {
+        showStatus('Войдите через Telegram бота', 'error');
+        return;
+    }
+
     const text = messageInput.value.trim();
     
     if (!text) {
@@ -61,7 +127,7 @@ async function addMessage() {
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ text }),
+            body: JSON.stringify({ text, user_id: currentUser.user_id }),
         });
         
         if (!response.ok) throw new Error('Ошибка добавления');
@@ -75,8 +141,9 @@ async function addMessage() {
     }
 }
 
-// Удалить сообщение
 async function deleteMessage(id) {
+    if (!currentUser) return;
+    
     try {
         const response = await fetch(`${API_URL}/messages/${id}`, {
             method: 'DELETE',
@@ -92,6 +159,15 @@ async function deleteMessage(id) {
     }
 }
 
+function showStatus(message, type = 'success') {
+    statusDiv.textContent = message;
+    statusDiv.className = `status ${type}`;
+    setTimeout(() => {
+        statusDiv.textContent = '';
+        statusDiv.className = 'status';
+    }, 3000);
+}
+
 // Отправка по Enter
 messageInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
@@ -99,5 +175,8 @@ messageInput.addEventListener('keypress', (e) => {
     }
 });
 
-// Загрузить сообщения при загрузке страницы
-document.addEventListener('DOMContentLoaded', loadMessages);
+// Загрузка при запуске
+document.addEventListener('DOMContentLoaded', async () => {
+    await loadUserProfile();
+    await loadMessages();
+});
