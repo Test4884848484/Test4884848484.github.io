@@ -3,22 +3,38 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Мое приложение</title>
+    <title>Telegram Game</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <h1>📝 Мой список сообщений</h1>
-        
-        <div class="add-message">
-            <input type="text" id="messageInput" placeholder="Введите сообщение...">
-            <button onclick="addMessage()">Добавить</button>
+        <!-- Профиль пользователя -->
+        <div id="userProfile" class="user-profile">
+            <!-- Загружается через JavaScript -->
         </div>
 
-        <div id="messagesList" class="messages">
-            <!-- Сообщения будут здесь -->
+        <!-- Игровая секция -->
+        <div class="game-section">
+            <h2>🎮 Мини-игры</h2>
+            
+            <!-- Кликер игра -->
+            <div class="game-card">
+                <h3>🪙 Кликер</h3>
+                <p>Нажимай на монету чтобы зарабатывать!</p>
+                <div class="clicker-game">
+                    <div class="coin" id="clickerCoin">🪙</div>
+                    <div class="game-stats">
+                        <span>Кликов: <span id="clickCount">0</span></span>
+                        <span>Монет: <span id="coinCount">0</span></span>
+                    </div>
+                    <button onclick="saveCoins()" class="save-btn">💾 Сохранить</button>
+                </div>
+            </div>
+
+            <!-- Другие игры можно добавить здесь -->
         </div>
 
+        <!-- Статус -->
         <div class="status" id="status"></div>
     </div>
 
