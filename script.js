@@ -1,42 +1,136 @@
 // 🔧 КОНФИГУРАЦИЯ
 const API_URL = 'https://my-backend-production-9034.up.railway.app/api';
 
-// Получаем параметры из URL
-const urlParams = new URLSearchParams(window.location.search);
-const telegramUserId = urlParams.get('tg');
-
 // Элементы DOM
 const userProfile = document.getElementById('userProfile');
 const gameSection = document.getElementById('gameSection');
 const statusDiv = document.getElementById('status');
 
 let currentUser = null;
+let telegramUserData = null;
 
-// Загрузка данных пользователя
+// 🔧 ФУНКЦИЯ ДЛЯ ПАРСИНГА TELEGRAM WEB APP DATA
+function parseTelegramData() {
+    // Проверяем есть ли данные от Telegram Web App
+    const urlParams = new URLSearchParams(window.location.hash.substring(1));
+    const tgWebAppData = urlParams.get('tgWebAppData');
+    
+    if (tgWebAppData) {
+        try {
+            // Парсим данные от Telegram
+            const decodedData = new URLSearchParams(tgWebAppData);
+            const userJson = decodedData.get('user');
+            if (userJson) {
+                return JSON.parse(decodeURIComponent(userJson));
+            }
+        } catch (e) {
+            console.error('Error parsing Telegram data:', e);
+        }
+    }
+    
+    // Альтернативный способ для тестирования
+    const urlSearchParams = new URLSearchParams(window.location.search);
+    const testUserId = urlSearchParams.get('tg');
+    
+    if (testUserId) {
+        return {
+            id: parseInt(testUserId),
+            first_name: "Test User",
+            username: "testuser"
+        };
+    }
+    
+    return null;
+}
+
+// 🔧 ФУНКЦИЯ ДЛЯ ПРОВЕРКИ TELEGRAM WEB APP
+function isTelegramWebApp() {
+    return window.Telegram && window.Telegram.WebApp || 
+           window.location.hash.includes('tgWebAppData') ||
+           window.location.search.includes('tg=');
+}
+
+// 🔧 ИНИЦИАЛИЗАЦИЯ TELEGRAM WEB APP
+function initTelegramWebApp() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        // Официальный Telegram Web App
+        const tg = window.Telegram.WebApp;
+        
+        // Показываем основной интерфейс
+        tg.expand();
+        tg.enableClosingConfirmation();
+        
+        // Получаем данные пользователя
+        telegramUserData = tg.initDataUnsafe.user;
+        
+        console.log('✅ Telegram Web App detected:', telegramUserData);
+        return true;
+    } else {
+        // Проверяем данные в URL (для тестирования)
+        telegramUserData = parseTelegramData();
+        if (telegramUserData) {
+            console.log('✅ Telegram data from URL:', telegramUserData);
+            return true;
+        }
+    }
+    
+    return false;
+}
+
+// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ
 async function loadUserProfile() {
-    if (!telegramUserId) {
+    const isTelegram = initTelegramWebApp();
+    
+    if (!isTelegram || !telegramUserData) {
         userProfile.innerHTML = `
             <div class="warning">
-                <h3>⚠️ Доступ через Telegram</h3>
-                <p>Пожалуйста, откройте это приложение через Telegram бота для полного доступа к функциям.</p>
+                <h3>⚠️ Откройте через Telegram</h3>
+                <p>Для полного доступа к функциям откройте это приложение через Telegram бота.</p>
+                <div class="test-buttons">
+                    <button onclick="testWithUser(123456789)">🧪 Тест: User 1</button>
+                    <button onclick="testWithUser(987654321)">🧪 Тест: User 2</button>
+                </div>
             </div>
         `;
         return;
     }
 
     try {
-        const response = await fetch(`${API_URL}/user/${telegramUserId}`);
+        // Регистрируем/получаем пользователя
+        const userData = {
+            user_id: telegramUserData.id,
+            username: telegramUserData.username,
+            first_name: telegramUserData.first_name,
+            last_name: telegramUserData.last_name || '',
+            photo_url: telegramUserData.photo_url
+        };
+
+        const response = await fetch(`${API_URL}/user`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(userData)
+        });
+        
         if (!response.ok) throw new Error('Ошибка загрузки профиля');
         
         currentUser = await response.json();
         renderUserProfile();
+        initGames();
         
     } catch (error) {
-        userProfile.innerHTML = '<p>❌ Ошибка загрузки профиля</p>';
+        console.error('Error loading user:', error);
+        userProfile.innerHTML = `
+            <div class="error">
+                <p>❌ Ошибка загрузки профиля</p>
+                <button onclick="loadUserProfile()">🔄 Повторить</button>
+            </div>
+        `;
     }
 }
 
-// Отображение профиля пользователя
+// 🔧 ОТОБРАЖЕНИЕ ПРОФИЛЯ ПОЛЬЗОВАТЕЛЯ
 function renderUserProfile() {
     if (!currentUser) return;
 
@@ -45,8 +139,11 @@ function renderUserProfile() {
             <div class="profile-header">
                 <img src="${currentUser.photo_url || 'https://via.placeholder.com/100/667eea/ffffff?text=TG'}" 
                      alt="Avatar" class="profile-avatar">
-                <h2>${currentUser.first_name} ${currentUser.last_name || ''}</h2>
-                <p class="username">@${currentUser.username || 'без username'}</p>
+                <div class="profile-info">
+                    <h2>${currentUser.first_name} ${currentUser.last_name || ''}</h2>
+                    <p class="username">@${currentUser.username || 'без username'}</p>
+                    <div class="user-badge">✅ Telegram User</div>
+                </div>
             </div>
             
             <div class="profile-stats">
@@ -57,6 +154,10 @@ function renderUserProfile() {
                 <div class="stat">
                     <span class="stat-value">${currentUser.referral_count || 0}</span>
                     <span class="stat-label">👥 Рефералов</span>
+                </div>
+                <div class="stat">
+                    <span class="stat-value">${(currentUser.referral_count || 0) * 10}</span>
+                    <span class="stat-label">💰 Заработано</span>
                 </div>
             </div>
             
@@ -74,56 +175,58 @@ function renderUserProfile() {
     `;
 }
 
-// Копирование реферальной ссылки
-function copyReferralLink() {
-    const input = document.getElementById('referralInput');
-    input.select();
-    document.execCommand('copy');
-    showStatus('Ссылка скопирована в буфер!', 'success');
-}
-
-// Простая игра для заработка монет
-function startGame() {
-    if (!currentUser) {
-        showStatus('Войдите через Telegram бота', 'error');
-        return;
-    }
-
-    // Простая игра - кликер
-    let coins = 0;
-    
-    gameSection.innerHTML = `
-        <div class="game-container">
-            <h3>🎮 Простая игра</h3>
-            <p>Нажимай на кнопку чтобы зарабатывать монеты!</p>
-            <div class="game-stats">
-                <span>Монеты: <span id="coinCount">0</span></span>
-            </div>
-            <button class="game-button" onclick="clickCoin()">🪙 Нажми меня!</button>
-            <button class="save-button" onclick="saveCoins()">💾 Сохранить монеты</button>
-        </div>
-    `;
-}
-
-let gameCoins = 0;
-
-function clickCoin() {
+// 🔧 ФУНКЦИИ ДЛЯ ИГР
+function initGames() {
     if (!currentUser) return;
     
-    gameCoins++;
-    document.getElementById('coinCount').textContent = gameCoins;
+    // Инициализация игр
+    initClickerGame();
+}
+
+let clickerCoins = 0;
+let clickCount = 0;
+
+function initClickerGame() {
+    const clickerCoin = document.getElementById('clickerCoin');
+    if (clickerCoin) {
+        clickerCoin.onclick = function() {
+            clickCount++;
+            clickerCoins++;
+            updateGameStats();
+            
+            // Анимация клика
+            this.style.transform = 'scale(0.9)';
+            setTimeout(() => {
+                this.style.transform = 'scale(1)';
+            }, 100);
+        };
+    }
+}
+
+function updateGameStats() {
+    const clickCountElement = document.getElementById('clickCount');
+    const coinCountElement = document.getElementById('coinCount');
+    
+    if (clickCountElement) clickCountElement.textContent = clickCount;
+    if (coinCountElement) coinCountElement.textContent = clickerCoins;
 }
 
 async function saveCoins() {
-    if (!currentUser || gameCoins === 0) return;
+    if (!currentUser || clickerCoins === 0) {
+        showStatus('❌ Нет монет для сохранения', 'error');
+        return;
+    }
 
     try {
-        // Здесь можно добавить логику сохранения монет в базу
-        showStatus(`🎉 Сохранено ${gameCoins} монет!`, 'success');
-        gameCoins = 0;
-        document.getElementById('coinCount').textContent = '0';
+        // Здесь можно добавить API вызов для сохранения монет
+        showStatus(`🎉 Сохранено ${clickerCoins} монет!`, 'success');
         
-        // Перезагружаем профиль для обновления баланса
+        // Сбрасываем счетчики
+        clickerCoins = 0;
+        clickCount = 0;
+        updateGameStats();
+        
+        // Перезагружаем профиль
         await loadUserProfile();
         
     } catch (error) {
@@ -131,21 +234,44 @@ async function saveCoins() {
     }
 }
 
-function showStatus(message, type = 'success') {
-    statusDiv.textContent = message;
-    statusDiv.className = `status ${type}`;
-    setTimeout(() => {
-        statusDiv.textContent = '';
-        statusDiv.className = 'status';
-    }, 3000);
+// 🔧 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+function copyReferralLink() {
+    const input = document.getElementById('referralInput');
+    if (input) {
+        input.select();
+        document.execCommand('copy');
+        showStatus('📋 Ссылка скопирована!', 'success');
+    }
 }
 
-// Загрузка при запуске
-document.addEventListener('DOMContentLoaded', async () => {
-    await loadUserProfile();
-    
-    // Показываем кнопку игры если пользователь авторизован
-    if (telegramUserId) {
-        document.getElementById('playButton').style.display = 'block';
+function showStatus(message, type = 'success') {
+    if (statusDiv) {
+        statusDiv.textContent = message;
+        statusDiv.className = `status ${type}`;
+        setTimeout(() => {
+            statusDiv.textContent = '';
+            statusDiv.className = 'status';
+        }, 3000);
     }
+}
+
+// 🔧 ТЕСТОВЫЕ ФУНКЦИИ
+async function testWithUser(userId) {
+    telegramUserData = {
+        id: userId,
+        first_name: `Test User ${userId}`,
+        username: `testuser${userId}`,
+        photo_url: null
+    };
+    
+    await loadUserProfile();
+}
+
+// 🔧 ЗАГРУЗКА ПРИ ЗАПУСКЕ
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 App started');
+    console.log('URL:', window.location.href);
+    console.log('Telegram WebApp available:', !!window.Telegram);
+    
+    loadUserProfile();
 });
