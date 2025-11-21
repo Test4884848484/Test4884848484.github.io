@@ -13,10 +13,11 @@ document.addEventListener('DOMContentLoaded', function() {
     initQuests();
     initModal();
     initRoulette();
+    initRaffleControls();
     startTimers();
 });
 
-// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ С ФОТО
 async function loadUserProfile() {
     const urlParams = new URLSearchParams(window.location.search);
     const telegramUserId = urlParams.get('tg');
@@ -27,58 +28,22 @@ async function loadUserProfile() {
     }
 
     try {
-        const response = await fetch(`${API_URL}/user/${telegramUserId}`);
+        const response = await fetch(`${API_URL}/user/full/${telegramUserId}`);
         if (!response.ok) throw new Error('Ошибка загрузки профиля');
         
-        currentUser = await response.json();
-        await loadUserData();
+        const fullData = await response.json();
+        currentUser = fullData.user;
+        userData = fullData.data;
+        
         renderProfile();
-        
-    } catch (error) {
-        console.error('Error loading user:', error);
-        useTestData();
-    }
-}
-
-// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ ИЗ БАЗЫ
-async function loadUserData() {
-    if (!currentUser) return;
-    
-    try {
-        // Загружаем данные пользователя
-        const response = await fetch(`${API_URL}/user/data/${currentUser.user_id}`);
-        if (response.ok) {
-            userData = await response.json();
-        } else {
-            // Создаем начальные данные
-            userData = {
-                user_id: currentUser.user_id,
-                balance: currentUser.balance || 0,
-                daily_bonus: {
-                    count: 0,
-                    last_claim: null,
-                    current_reward: 10
-                },
-                quests: {
-                    subscribe: { completed: 0, last_claim: null },
-                    name: { completed: 0, last_claim: null },
-                    ref_desc: { completed: 0, last_claim: null }
-                },
-                referrals: currentUser.referral_count || 0,
-                cases_opened: 0,
-                inventory: [],
-                level: 1
-            };
-            await saveUserData();
-        }
-        
         updateUI();
         loadCases();
         loadRaffles();
         loadInventory();
         
     } catch (error) {
-        console.error('Error loading user data:', error);
+        console.error('Error loading user:', error);
+        useTestData();
     }
 }
 
@@ -109,11 +74,27 @@ async function updateBalance(newBalance) {
         });
         
         if (response.ok) {
-            currentUser.balance = newBalance;
+            // Обновляем локальные данные
             userData.balance = newBalance;
+            await saveUserData(); // Сохраняем все данные
         }
     } catch (error) {
         console.error('Error updating balance:', error);
+    }
+}
+
+// 🔧 ДОБАВИТЬ ПРЕДМЕТ В ИНВЕНТАРЬ В БАЗУ
+async function addToInventory(item) {
+    if (!currentUser) return;
+    
+    try {
+        await fetch(`${API_URL}/user/inventory/${currentUser.user_id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(item)
+        });
+    } catch (error) {
+        console.error('Error adding to inventory:', error);
     }
 }
 
@@ -200,7 +181,7 @@ function initQuests() {
     document.getElementById('referralButton').addEventListener('click', claimReferralRewards);
 }
 
-// 🔧 ЕЖЕДНЕВНЫЙ БОНУС
+// 🔧 ЕЖЕДНЕВНЫЙ БОНУС С СОХРАНЕНИЕМ ВРЕМЕНИ
 function startTimers() {
     updateDailyTimer();
     setInterval(updateDailyTimer, 1000);
@@ -209,8 +190,8 @@ function startTimers() {
 function updateDailyTimer() {
     if (!userData.daily_bonus) return;
     
-    const now = Date.now();
-    const lastClaim = userData.daily_bonus.last_claim ? new Date(userData.daily_bonus.last_claim).getTime() : null;
+    const now = new Date();
+    const lastClaim = userData.daily_bonus.last_claim ? new Date(userData.daily_bonus.last_claim) : null;
     const cooldown = 60 * 1000; // 1 минута
     const button = document.getElementById('dailyButton');
     const timer = document.getElementById('dailyTimer');
@@ -235,16 +216,16 @@ async function claimDailyBonus() {
     }
     
     const newBalance = userData.balance + userData.daily_bonus.current_reward;
+    const now = new Date().toISOString();
     
     // Обновляем локальные данные
     userData.daily_bonus.count++;
-    userData.daily_bonus.last_claim = new Date().toISOString();
+    userData.daily_bonus.last_claim = now; // Сохраняем точное время
     userData.daily_bonus.current_reward += 10;
     userData.balance = newBalance;
     
     // Сохраняем в базу
     await updateBalance(newBalance);
-    await saveUserData();
     
     showNotification(`🎉 +${userData.daily_bonus.current_reward - 10} монет!`, 'success');
     updateUI();
@@ -265,7 +246,7 @@ async function checkRefInDescription() {
 
 async function processQuest(questType, reward, questName) {
     const quest = userData.quests[questType];
-    const now = new Date().toDateString();
+    const now = new Date().toISOString().split('T')[0]; // Только дата
     
     if (quest.last_claim === now) {
         showNotification('❌ Уже получали награду сегодня', 'error');
@@ -280,12 +261,11 @@ async function processQuest(questType, reward, questName) {
         
         // Обновляем локальные данные
         quest.completed++;
-        quest.last_claim = now;
+        quest.last_claim = now; // Сохраняем дату
         userData.balance = newBalance;
         
         // Сохраняем в базу
         await updateBalance(newBalance);
-        await saveUserData();
         
         showNotification(`🎉 +${reward} монет за ${questName}!`, 'success');
         updateUI();
@@ -334,7 +314,6 @@ async function claimReferralRewards() {
         
         // Сохраняем в базу
         await updateBalance(newBalance);
-        await saveUserData();
         
         showNotification(`🎉 +${rewards} монет за рефералов!`, 'success');
         updateUI();
@@ -503,12 +482,17 @@ async function spinRoulette() {
     // Обновляем баланс и инвентарь
     const newBalance = userData.balance - currentCase.price;
     userData.balance = newBalance;
-    userData.cases_opened++;
+    userData.cases_opened = (userData.cases_opened || 0) + 1;
+    
+    // Добавляем предмет в инвентарь в базе
+    await addToInventory(winnerItem);
+    
+    // Обновляем локальный инвентарь
+    if (!userData.inventory) userData.inventory = [];
     userData.inventory.push(winnerItem);
     
     // Сохраняем в базу
     await updateBalance(newBalance);
-    await saveUserData();
     
     // Обновляем UI
     updateUI();
@@ -591,7 +575,6 @@ async function loadRaffles() {
         }
         
         renderRaffles(raffles);
-        initRaffleControls(raffles);
         
     } catch (error) {
         console.error('Error loading raffles:', error);
@@ -616,7 +599,7 @@ function renderRaffles(raffles) {
     `).join('');
 }
 
-function initRaffleControls(raffles) {
+function initRaffleControls() {
     const prevBtn = document.getElementById('prevRaffle');
     const nextBtn = document.getElementById('nextRaffle');
     const slider = document.getElementById('raffleSlider');
@@ -627,7 +610,7 @@ function initRaffleControls(raffles) {
     });
     
     nextBtn.addEventListener('click', () => {
-        currentRaffleIndex = Math.min(raffles.length - 1, currentRaffleIndex + 1);
+        currentRaffleIndex = Math.min(10, currentRaffleIndex + 1); // Предполагаем максимум 10 розыгрышей
         slider.scrollTo({ left: currentRaffleIndex * 300, behavior: 'smooth' });
     });
 }
@@ -636,7 +619,7 @@ async function participateRaffle(raffleId) {
     showNotification('✅ Вы участвуете в розыгрыше!', 'success');
 }
 
-// 🔧 ПРОФИЛЬ
+// 🔧 ПРОФИЛЬ С ФОТОГРАФИЕЙ
 function renderProfile() {
     if (!currentUser) return;
     
@@ -650,10 +633,14 @@ function renderProfile() {
     document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
     document.getElementById('profileLevel').textContent = userData.level || 1;
     
-    // Аватар
+    // Аватар из Telegram
     const avatar = document.getElementById('profileAvatar');
     if (currentUser.photo_url) {
         avatar.innerHTML = `<img src="${currentUser.photo_url}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+    } else {
+        // Если фото нет, показываем первую букву имени
+        const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
+        avatar.innerHTML = `<span style="font-size: 24px;">${firstLetter}</span>`;
     }
 }
 
@@ -717,19 +704,18 @@ function useTestData() {
         photo_url: null
     };
     userData = {
-        user_id: currentUser.user_id,
-        balance: currentUser.balance,
+        balance: 150,
         daily_bonus: {
             count: 2,
             last_claim: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
             current_reward: 30
         },
         quests: {
-            subscribe: { completed: 3, last_claim: new Date().toDateString() },
+            subscribe: { completed: 3, last_claim: new Date().toISOString().split('T')[0] },
             name: { completed: 1, last_claim: null },
             ref_desc: { completed: 0, last_claim: null }
         },
-        referrals: currentUser.referral_count,
+        referrals: 3,
         cases_opened: 5,
         inventory: [
             { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" }
@@ -740,6 +726,7 @@ function useTestData() {
     loadCases();
     loadRaffles();
     loadInventory();
+    renderProfile();
 }
 
 function showWarningMessage() {
