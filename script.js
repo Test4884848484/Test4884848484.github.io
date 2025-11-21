@@ -35,6 +35,11 @@ async function loadUserProfile() {
         currentUser = fullData.user;
         userData = fullData.data;
         
+        console.log('✅ Данные пользователя загружены:', {
+            user: currentUser,
+            data: userData
+        });
+        
         renderProfile();
         updateUI();
         loadCases();
@@ -43,7 +48,32 @@ async function loadUserProfile() {
         
     } catch (error) {
         console.error('Error loading user:', error);
-        useTestData();
+        // Пробуем загрузить базовые данные
+        try {
+            const basicResponse = await fetch(`${API_URL}/user/${telegramUserId}`);
+            if (basicResponse.ok) {
+                currentUser = await basicResponse.json();
+                userData = {
+                    balance: currentUser.balance || 0,
+                    daily_bonus: { count: 0, last_claim: null, current_reward: 10 },
+                    quests: {
+                        subscribe: { completed: 0, last_claim: null },
+                        name: { completed: 0, last_claim: null },
+                        ref_desc: { completed: 0, last_claim: null }
+                    },
+                    referrals: currentUser.referral_count || 0,
+                    cases_opened: 0,
+                    inventory: [],
+                    level: 1
+                };
+                renderProfile();
+                updateUI();
+            } else {
+                useTestData();
+            }
+        } catch (e) {
+            useTestData();
+        }
     }
 }
 
@@ -739,3 +769,4 @@ function showWarningMessage() {
         </div>
     `;
 }
+
