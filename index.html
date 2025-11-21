@@ -3,39 +3,211 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Game</title>
+    <title>CS2DropZone</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <!-- Профиль пользователя -->
-        <div id="userProfile" class="user-profile">
-            <!-- Загружается через JavaScript -->
+        <!-- Шапка с балансом -->
+        <div class="header">
+            <h1>CS2DropZone</h1>
+            <div class="balance">💎 Монет: <span id="balance">0</span></div>
         </div>
 
-        <!-- Игровая секция -->
-        <div class="game-section">
-            <h2>🎮 Мини-игры</h2>
-            
-            <!-- Кликер игра -->
-            <div class="game-card">
-                <h3>🪙 Кликер</h3>
-                <p>Нажимай на монету чтобы зарабатывать!</p>
-                <div class="clicker-game">
-                    <div class="coin" id="clickerCoin">🪙</div>
-                    <div class="game-stats">
-                        <span>Кликов: <span id="clickCount">0</span></span>
-                        <span>Монет: <span id="coinCount">0</span></span>
+        <!-- Навигация -->
+        <div class="nav">
+            <div class="nav-item active" data-tab="main">Главная</div>
+            <div class="nav-item" data-tab="games">Игры</div>
+            <div class="nav-item" data-tab="inventory">Инвентарь</div>
+            <div class="nav-item" data-tab="profile">Профиль</div>
+        </div>
+
+        <!-- Главная страница -->
+        <div id="main" class="tab-content active">
+            <!-- Задания -->
+            <div class="quests-section">
+                <div class="section-title">🎯 Задания</div>
+                
+                <!-- Ежедневный бонус -->
+                <div class="quest-card">
+                    <div class="quest-header">
+                        <div class="quest-title">Ежедневный бонус</div>
+                        <div class="quest-reward">+<span id="dailyReward">10</span> монет</div>
                     </div>
-                    <button onclick="saveCoins()" class="save-btn">💾 Сохранить</button>
+                    <div class="quest-description">Забирай бонус каждую минуту</div>
+                    <div class="quest-progress">
+                        <span class="progress-text">Выполнено:</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="dailyProgress" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text"><span id="dailyCompleted">0</span>/7</span>
+                    </div>
+                    <div class="quest-timer" id="dailyTimer">Доступно через: 60 сек</div>
+                    <button class="quest-button" id="dailyButton" disabled>Забрать</button>
+                </div>
+
+                <!-- Подписка на канал -->
+                <div class="quest-card">
+                    <div class="quest-header">
+                        <div class="quest-title">Подписка на канал</div>
+                        <div class="quest-reward">+100 монет</div>
+                    </div>
+                    <div class="quest-description">Подпишись на наш канал CS2DropZone</div>
+                    <div class="quest-progress">
+                        <span class="progress-text">Выполнено:</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="subscribeProgress" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text"><span id="subscribeCompleted">0</span>/10 дней</span>
+                    </div>
+                    <button class="quest-button" id="subscribeButton">+100 монет</button>
+                </div>
+
+                <!-- Имя бота в фамилии -->
+                <div class="quest-card">
+                    <div class="quest-header">
+                        <div class="quest-title">Имя бота в фамилии</div>
+                        <div class="quest-reward">+50 монет</div>
+                    </div>
+                    <div class="quest-description">Добавь @CS2DropZone_bot в фамилию</div>
+                    <div class="quest-progress">
+                        <span class="progress-text">Выполнено:</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="nameProgress" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text"><span id="nameCompleted">0</span>/10 дней</span>
+                    </div>
+                    <button class="quest-button" id="nameButton">+50 монет</button>
+                </div>
+
+                <!-- Реф. ссылка в описании -->
+                <div class="quest-card">
+                    <div class="quest-header">
+                        <div class="quest-title">Реф. ссылка в описании</div>
+                        <div class="quest-reward">+20 монет</div>
+                    </div>
+                    <div class="quest-description">Добавь реф. ссылку в описание профиля</div>
+                    <div class="quest-progress">
+                        <span class="progress-text">Выполнено:</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="refDescProgress" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text"><span id="refDescCompleted">0</span>/10 дней</span>
+                    </div>
+                    <div class="modal-buttons">
+                        <button class="quest-button" id="copyRefButton">Скопировать ссылку</button>
+                        <button class="quest-button" id="refDescButton">+20 монет</button>
+                    </div>
+                </div>
+
+                <!-- Пригласи друга -->
+                <div class="quest-card">
+                    <div class="quest-header">
+                        <div class="quest-title">Пригласи друга</div>
+                        <div class="quest-reward">+100 монет</div>
+                    </div>
+                    <div class="quest-description">За каждого друга +100 монет • За 10-го +1000</div>
+                    <div class="quest-progress">
+                        <span class="progress-text">Приглашено:</span>
+                        <div class="progress-bar">
+                            <div class="progress-fill" id="referralProgress" style="width: 0%"></div>
+                        </div>
+                        <span class="progress-text"><span id="referralCount">0</span>/10</span>
+                    </div>
+                    <button class="quest-button" id="referralButton">Забрать награды</button>
                 </div>
             </div>
 
-            <!-- Другие игры можно добавить здесь -->
+            <!-- Розыгрыши -->
+            <div class="quests-section raffles-section">
+                <div class="section-title">🎁 Розыгрыши</div>
+                <div class="raffle-slider" id="raffleSlider">
+                    <!-- Розыгрыши будут добавляться через JS -->
+                </div>
+            </div>
         </div>
 
-        <!-- Статус -->
-        <div class="status" id="status"></div>
+        <!-- Игры -->
+        <div id="games" class="tab-content">
+            <div class="quests-section">
+                <div class="section-title">🎮 Игры</div>
+                <div class="games-grid">
+                    <div class="game-card" data-game="cases">
+                        <div class="game-icon">🎁</div>
+                        <div class="game-title">Кейсы</div>
+                        <div class="game-stats">Открыто: <span id="casesOpened">0</span></div>
+                    </div>
+                    <div class="game-card" data-game="clicker">
+                        <div class="game-icon">🪙</div>
+                        <div class="game-title">Кликер</div>
+                        <div class="game-stats">Монет: <span id="clickerCoins">0</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Инвентарь -->
+        <div id="inventory" class="tab-content">
+            <div class="quests-section">
+                <div class="section-title">🎒 Инвентарь</div>
+                <div class="inventory-grid" id="inventoryGrid">
+                    <!-- Предметы будут добавляться через JS -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Профиль -->
+        <div id="profile" class="tab-content">
+            <div class="profile-card">
+                <div class="profile-avatar" id="profileAvatar">👤</div>
+                <div class="profile-name" id="profileName">Пользователь</div>
+                <div class="profile-stats">
+                    <div class="stat">
+                        <span class="stat-value" id="profileBalance">0</span>
+                        <span class="stat-label">💎 Монет</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="profileReferrals">0</span>
+                        <span class="stat-label">👥 Рефералов</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="profileCases">0</span>
+                        <span class="stat-label">🎁 Кейсов</span>
+                    </div>
+                    <div class="stat">
+                        <span class="stat-value" id="profileItems">0</span>
+                        <span class="stat-label">🎒 Предметов</span>
+                    </div>
+                </div>
+                <div class="profile-inventory">
+                    <div class="section-title">Лучшие предметы</div>
+                    <div class="inventory-preview" id="profileInventory">
+                        <!-- Предметы профиля -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно для задания -->
+    <div class="modal" id="questModal">
+        <div class="modal-content">
+            <div class="modal-title" id="modalTitle">Имя бота в фамилии</div>
+            <div class="modal-text" id="modalText">
+                Награда: 50 монет<br><br>
+                Для выполнения этого задания необходимо:
+            </div>
+            <ul class="modal-steps">
+                <li>Откройте настройки Telegram</li>
+                <li>Перейдите в раздел "Изменить профиль"</li>
+                <li>Добавьте "@CS2DropZone_bot" в конец своей фамилии</li>
+                <li>Сохраните изменения</li>
+                <li>Вернитесь в приложение и попробуйте активировать задание снова</li>
+            </ul>
+            <div class="modal-buttons">
+                <button class="modal-button secondary" id="modalClose">Понятно</button>
+            </div>
+        </div>
     </div>
 
     <script src="script.js"></script>
