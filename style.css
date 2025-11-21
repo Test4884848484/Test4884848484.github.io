@@ -1,76 +1,541 @@
-/* Анимации для рулетки */
-.roulette-container {
+/* Основные стили */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Arial', sans-serif;
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    color: white;
+    min-height: 100vh;
+    padding-bottom: 60px;
+}
+
+.container {
+    max-width: 400px;
+    margin: 0 auto;
+    padding: 10px;
+}
+
+/* Навигация снизу */
+.nav {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    display: flex;
+    justify-content: space-around;
+    background: rgba(26, 26, 46, 0.95);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(255, 107, 53, 0.3);
+    padding: 10px;
+    z-index: 1000;
+}
+
+.nav-item {
+    padding: 8px 15px;
+    border-radius: 20px;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 12px;
+    text-align: center;
+    flex: 1;
+    margin: 0 5px;
+}
+
+.nav-item.active {
+    background: #ff6b35;
+    color: white;
+}
+
+/* Баланс в шапке */
+.balance-header {
+    text-align: center;
+    padding: 15px;
+    background: rgba(255, 107, 53, 0.1);
+    border-radius: 10px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.balance-amount {
+    font-size: 24px;
+    font-weight: bold;
+    color: #ffd700;
+}
+
+/* Задания */
+.quests-section {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 15px;
+    padding: 15px;
+    margin-bottom: 15px;
+    border: 1px solid rgba(255, 107, 53, 0.2);
+}
+
+.section-title {
+    font-size: 16px;
+    margin-bottom: 15px;
+    color: #ffd700;
+    text-align: center;
+    font-weight: bold;
+}
+
+.quest-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.quest-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.quest-title {
+    font-weight: bold;
+    font-size: 14px;
+    color: #fff;
+}
+
+.quest-reward {
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    color: #000;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.quest-description {
+    font-size: 12px;
+    margin-bottom: 12px;
+    opacity: 0.9;
+    line-height: 1.3;
+}
+
+.quest-progress {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.progress-bar {
+    flex-grow: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 3px;
+    margin: 0 10px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    height: 100%;
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    border-radius: 3px;
+    transition: width 0.3s;
+}
+
+.progress-text {
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0.8;
+}
+
+.quest-timer {
+    text-align: center;
+    font-size: 11px;
+    margin-bottom: 10px;
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.quest-button {
+    width: 100%;
+    padding: 12px;
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+    font-size: 14px;
+}
+
+.quest-button:disabled {
+    background: #666;
+    cursor: not-allowed;
+}
+
+.quest-button:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+}
+
+.quest-button.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    margin-top: 8px;
+}
+
+.quest-button.secondary:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateY(-2px);
+}
+
+/* Модальное окно */
+.modal {
+    display: none;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.95);
-    z-index: 3000;
-    display: none;
+    background: rgba(0, 0, 0, 0.9);
+    z-index: 2000;
     align-items: center;
     justify-content: center;
+    padding: 20px;
 }
 
-.roulette-content {
+.modal-content {
     background: linear-gradient(135deg, #1a1a2e, #16213e);
     border-radius: 20px;
-    padding: 30px;
-    max-width: 400px;
-    width: 90%;
-    border: 3px solid #ff6b35;
-    text-align: center;
+    padding: 25px;
+    max-width: 350px;
+    width: 100%;
+    border: 2px solid #ff6b35;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
 }
 
-.roulette-items {
-    display: flex;
-    overflow: hidden;
+.modal-title {
+    color: #ffd700;
+    text-align: center;
+    margin-bottom: 20px;
+    font-size: 18px;
+    font-weight: bold;
+}
+
+.modal-text {
+    margin-bottom: 20px;
+    line-height: 1.5;
+    font-size: 14px;
+}
+
+.modal-steps {
     margin: 20px 0;
-    padding: 10px;
-    background: rgba(0, 0, 0, 0.3);
-    border-radius: 10px;
+    padding-left: 20px;
 }
 
-.roulette-item {
-    min-width: 80px;
-    margin: 0 5px;
-    text-align: center;
+.modal-steps li {
+    margin-bottom: 10px;
+    font-size: 13px;
+    line-height: 1.4;
 }
 
-.roulette-item img {
-    width: 60px;
-    height: 60px;
-    border-radius: 5px;
-    border: 2px solid transparent;
+.modal-buttons {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
 }
 
-.roulette-item.active img {
-    border-color: #ffd700;
-    box-shadow: 0 0 15px #ffd700;
-}
-
-.roulette-item-name {
-    font-size: 10px;
-    margin-top: 5px;
-}
-
-.roulette-spin {
-    background: linear-gradient(45deg, #ff6b35, #ff8c35);
-    color: white;
+.modal-button {
+    flex: 1;
+    padding: 12px;
     border: none;
-    padding: 15px 30px;
     border-radius: 10px;
     font-weight: bold;
     cursor: pointer;
-    margin: 10px 0;
+    font-size: 14px;
+    transition: all 0.3s;
 }
 
-.roulette-result {
-    margin-top: 20px;
-    padding: 15px;
-    background: rgba(255, 215, 0, 0.1);
+.modal-button.primary {
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    color: white;
+}
+
+.modal-button.secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: white;
+}
+
+.modal-button:hover {
+    transform: translateY(-2px);
+}
+
+/* Игры - Кейсы */
+.cases-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 15px;
+}
+
+.case-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 15px;
+    padding: 20px;
+    text-align: center;
+    border: 2px solid rgba(255, 107, 53, 0.3);
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.case-card:hover {
+    transform: translateY(-5px);
+    border-color: #ff6b35;
+    box-shadow: 0 8px 25px rgba(255, 107, 53, 0.3);
+}
+
+.case-image {
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 15px;
     border-radius: 10px;
-    border: 1px solid #ffd700;
+    background: linear-gradient(45deg, #333, #555);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    overflow: hidden;
+}
+
+.case-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.case-title {
+    font-size: 16px;
+    font-weight: bold;
+    margin-bottom: 8px;
+    color: #ffd700;
+}
+
+.case-price {
+    font-size: 14px;
+    margin-bottom: 12px;
+    color: #ff6b35;
+}
+
+.case-stats {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Инвентарь */
+.inventory-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+}
+
+.inventory-item {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 12px;
+    padding: 15px;
+    text-align: center;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    transition: all 0.3s;
+}
+
+.inventory-item:hover {
+    transform: translateY(-3px);
+    border-color: #ff6b35;
+}
+
+.item-image {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto 8px;
+    border-radius: 8px;
+    background: linear-gradient(45deg, #333, #555);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.item-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.item-name {
+    font-size: 12px;
+    margin-bottom: 5px;
+    font-weight: bold;
+}
+
+.item-price {
+    font-size: 11px;
+    color: #ffd700;
+    font-weight: bold;
+}
+
+/* Профиль */
+.profile-card {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 20px;
+    padding: 25px;
+    text-align: center;
+    border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.profile-header {
+    display: flex;
+    align-items: center;
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.profile-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    margin-right: 15px;
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    flex-shrink: 0;
+}
+
+.profile-avatar img {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    object-fit: cover;
+}
+
+.profile-info {
+    flex: 1;
+}
+
+.profile-name {
+    font-size: 18px;
+    font-weight: bold;
+    margin-bottom: 5px;
+}
+
+.profile-username {
+    font-size: 14px;
+    opacity: 0.8;
+    margin-bottom: 8px;
+}
+
+.profile-balance {
+    font-size: 16px;
+    color: #ffd700;
+    font-weight: bold;
+}
+
+.profile-stats {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 20px 0;
+}
+
+.stat {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 15px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.stat-value {
+    display: block;
+    font-size: 18px;
+    font-weight: bold;
+    color: #ffd700;
+    margin-bottom: 5px;
+}
+
+.stat-label {
+    font-size: 12px;
+    opacity: 0.8;
+}
+
+/* Розыгрыши */
+.raffles-section {
+    position: relative;
+}
+
+.raffle-slider {
+    display: flex;
+    overflow-x: auto;
+    gap: 15px;
+    padding: 10px 0;
+    scrollbar-width: none;
+}
+
+.raffle-slider::-webkit-scrollbar {
+    display: none;
+}
+
+.raffle-card {
+    min-width: 280px;
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 15px;
+    padding: 20px;
+    border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.raffle-image {
+    width: 100%;
+    height: 120px;
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    border-radius: 10px;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: bold;
+    overflow: hidden;
+}
+
+.raffle-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 10px;
+}
+
+.raffle-info {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 12px;
+}
+
+.raffle-button {
+    width: 100%;
+    padding: 10px;
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    border: none;
+    border-radius: 10px;
+    color: white;
+    font-weight: bold;
+    cursor: pointer;
+    transition: all 0.3s;
+}
+
+.raffle-button:hover {
+    transform: translateY(-2px);
 }
 
 /* Кнопки для слайдера розыгрышей */
@@ -93,30 +558,324 @@
     align-items: center;
     justify-content: center;
     font-weight: bold;
+    transition: all 0.3s;
 }
 
 .slider-btn:hover {
     background: #ff6b35;
 }
 
+/* Анимации для рулетки */
+.roulette-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.95);
+    z-index: 3000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+
+.roulette-content {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 400px;
+    width: 100%;
+    border: 3px solid #ff6b35;
+    text-align: center;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.roulette-items {
+    display: flex;
+    overflow: hidden;
+    margin: 20px 0;
+    padding: 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border-radius: 10px;
+    border: 1px solid rgba(255, 107, 53, 0.3);
+}
+
+.roulette-item {
+    min-width: 80px;
+    margin: 0 5px;
+    text-align: center;
+    transition: all 0.3s;
+}
+
+.roulette-item img {
+    width: 60px;
+    height: 60px;
+    border-radius: 5px;
+    border: 2px solid transparent;
+    transition: all 0.3s;
+}
+
+.roulette-item.active img {
+    border-color: #ffd700;
+    box-shadow: 0 0 15px #ffd700;
+    transform: scale(1.1);
+}
+
+.roulette-item-name {
+    font-size: 10px;
+    margin-top: 5px;
+    font-weight: bold;
+}
+
+.roulette-spin {
+    background: linear-gradient(45deg, #ff6b35, #ff8c35);
+    color: white;
+    border: none;
+    padding: 15px 30px;
+    border-radius: 10px;
+    font-weight: bold;
+    cursor: pointer;
+    margin: 10px 0;
+    font-size: 16px;
+    transition: all 0.3s;
+    width: 100%;
+}
+
+.roulette-spin:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 53, 0.4);
+}
+
+.roulette-spin:disabled {
+    background: #666;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.roulette-result {
+    margin-top: 20px;
+    padding: 15px;
+    background: rgba(255, 215, 0, 0.1);
+    border-radius: 10px;
+    border: 1px solid #ffd700;
+    text-align: center;
+}
+
+/* Уведомления */
+.notification {
+    position: fixed;
+    top: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 107, 53, 0.95);
+    color: white;
+    padding: 12px 20px;
+    border-radius: 10px;
+    z-index: 3000;
+    font-weight: bold;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
+    animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+    from {
+        transform: translateX(-50%) translateY(-50px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(-50%) translateY(0);
+        opacity: 1;
+    }
+}
+
+/* Анимации */
+@keyframes pulse {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1); }
+}
+
+.pulse {
+    animation: pulse 0.5s ease-in-out;
+}
+
+/* Иконки Telegram */
+.telegram-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    background: #0088cc;
+    border-radius: 50%;
+    color: white;
+    text-align: center;
+    line-height: 16px;
+    font-size: 10px;
+    margin-right: 5px;
+}
+
 /* Статус загрузки */
 .loading {
     opacity: 0.7;
     pointer-events: none;
+    position: relative;
 }
 
-/* Баланс в шапке */
-.balance-header {
+.loading::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10px 0 0 -10px;
+    border: 2px solid #ff6b35;
+    border-top: 2px solid transparent;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+}
+
+/* Адаптивность */
+@media (max-width: 480px) {
+    .container {
+        padding: 8px;
+    }
+    
+    .nav-item {
+        padding: 6px 12px;
+        font-size: 11px;
+    }
+    
+    .balance-header {
+        padding: 12px;
+    }
+    
+    .balance-amount {
+        font-size: 20px;
+    }
+    
+    .quests-section {
+        padding: 12px;
+    }
+    
+    .case-card {
+        padding: 15px;
+    }
+    
+    .case-image {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .inventory-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+    }
+    
+    .inventory-item {
+        padding: 12px;
+    }
+    
+    .item-image {
+        width: 70px;
+        height: 70px;
+    }
+    
+    .profile-card {
+        padding: 20px;
+    }
+    
+    .profile-avatar {
+        width: 60px;
+        height: 60px;
+    }
+    
+    .profile-name {
+        font-size: 16px;
+    }
+    
+    .stat {
+        padding: 12px;
+    }
+    
+    .stat-value {
+        font-size: 16px;
+    }
+}
+
+/* Скрытие элементов */
+.tab-content {
+    display: none;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+/* Стили для пустых состояний */
+.empty-state {
     text-align: center;
-    padding: 15px;
-    background: rgba(255, 107, 53, 0.1);
-    border-radius: 10px;
-    margin-bottom: 15px;
-    border: 1px solid rgba(255, 107, 53, 0.3);
+    padding: 40px 20px;
+    opacity: 0.7;
+    color: #ccc;
 }
 
-.balance-amount {
-    font-size: 24px;
-    font-weight: bold;
-    color: #ffd700;
+.empty-state::before {
+    content: "📭";
+    font-size: 40px;
+    display: block;
+    margin-bottom: 15px;
+}
+
+/* Стили для ошибок */
+.error-message {
+    background: rgba(220, 53, 69, 0.1);
+    border: 1px solid rgba(220, 53, 69, 0.3);
+    color: #dc3545;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    margin: 10px 0;
+}
+
+/* Стили для успешных операций */
+.success-message {
+    background: rgba(40, 167, 69, 0.1);
+    border: 1px solid rgba(40, 167, 69, 0.3);
+    color: #28a745;
+    padding: 15px;
+    border-radius: 10px;
+    text-align: center;
+    margin: 10px 0;
+}
+
+/* Плавные переходы */
+* {
+    transition: color 0.3s, background-color 0.3s, border-color 0.3s;
+}
+
+/* Улучшение скроллбара для WebKit браузеров */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: rgba(255, 107, 53, 0.5);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: rgba(255, 107, 53, 0.7);
 }
