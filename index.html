@@ -8,6 +8,13 @@
 </head>
 <body>
     <div class="container">
+        <!-- Баланс в шапке -->
+        <div class="balance-header">
+            <div>💎 Баланс:</div>
+            <div class="balance-amount" id="balance">0</div>
+            <div>монет</div>
+        </div>
+
         <!-- Главная страница -->
         <div id="main" class="tab-content active">
             <!-- Задания -->
@@ -110,6 +117,10 @@
                 <div class="raffle-slider" id="raffleSlider">
                     <!-- Розыгрыши будут добавляться через JS -->
                 </div>
+                <div class="slider-controls">
+                    <button class="slider-btn" id="prevRaffle">‹</button>
+                    <button class="slider-btn" id="nextRaffle">›</button>
+                </div>
             </div>
         </div>
 
@@ -196,6 +207,21 @@
                 <button class="modal-button primary" id="modalCheck">Проверить снова</button>
                 <button class="modal-button secondary" id="modalClose">Понятно</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Рулетка для кейсов -->
+    <div class="roulette-container" id="rouletteContainer">
+        <div class="roulette-content">
+            <div class="modal-title" id="rouletteTitle">Открытие кейса</div>
+            <div class="roulette-items" id="rouletteItems">
+                <!-- Предметы рулетки -->
+            </div>
+            <button class="roulette-spin" id="spinButton">Крутить за <span id="casePrice">0</span> монет</button>
+            <div class="roulette-result" id="rouletteResult" style="display: none;">
+                <!-- Результат -->
+            </div>
+            <button class="modal-button secondary" id="closeRoulette" style="display: none;">Закрыть</button>
         </div>
     </div>
 
