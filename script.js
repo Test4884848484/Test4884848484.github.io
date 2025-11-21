@@ -2,60 +2,9 @@
 const API_URL = 'https://my-backend-production-9034.up.railway.app/api';
 
 let currentUser = null;
-let userData = {
-    balance: 0,
-    dailyBonus: {
-        count: 0,
-        lastClaim: null,
-        currentReward: 10
-    },
-    quests: {
-        subscribe: { completed: 0, lastClaim: null },
-        name: { completed: 0, lastClaim: null },
-        refDesc: { completed: 0, lastClaim: null }
-    },
-    referrals: 0,
-    casesOpened: 0,
-    inventory: [],
-    level: 1
-};
-
-// 🔧 КЕЙСЫ И ПРЕДМЕТЫ
-const cases = [
-    {
-        id: 1,
-        name: "Кейс Grunt",
-        price: 100,
-        image: "https://cs-shot.pro/images/new2/Grunt.png",
-        opened: 0,
-        items: [
-            { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" },
-            { name: "AWP | Dragon Lore", price: "10000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" }
-        ]
-    },
-    {
-        id: 2,
-        name: "Кейс Lurk",
-        price: 200,
-        image: "https://cs-shot.pro/images/new2/Lurk.png",
-        opened: 0,
-        items: [
-            { name: "M4A4 | Howl", price: "8000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLkjYbf7itX6vytbbZSKOmsHGKU1edxtfNWQyC0nQlptWWEzd-qd3mVbgR2WZYiFuUMtUG7x4HhYeLhs1fZiN1DnC6viH4Y7TErvbgp6HjWjQ" },
-            { name: "Knife | Fade", price: "12000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwi5Hf_jdk4OSrerRsM-OsCXWRx9F3peZWRyyygwRp527cn478dXyXbAJ2DZV2QucK5BDukoexMO3m4QWN2o1Hyiz-ii4bvTErvbhWWiFhog" }
-        ]
-    },
-    {
-        id: 3,
-        name: "Кейс Vandal",
-        price: 300,
-        image: "https://cs-shot.pro/images/new2/Vandal.png",
-        opened: 0,
-        items: [
-            { name: "Gloves | Sport", price: "6000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSMP-aAHOvxedlsfN7TjCMmRQguynLnIz_dXnEbFcoDsNzQLMN40S7mte0Zuzl5gbY34JEnnr52ChA7ytisPFCD_Rw7udDlA" },
-            { name: "Pistol | Neo-Noir", price: "2000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL6kJ_m-B1L-uGmV6VgH_2SHGyVxdFjoN4wHxa_nBovp3OHzomhdC3BbwIiDZV2Ru9ZukK4ld2zYerg4AGNjItExCT52C0c7H0__a9cBh2VpMK4" }
-        ]
-    }
-];
+let userData = {};
+let currentRaffleIndex = 0;
+let currentCase = null;
 
 // 🔧 ИНИЦИАЛИЗАЦИЯ
 document.addEventListener('DOMContentLoaded', function() {
@@ -63,9 +12,8 @@ document.addEventListener('DOMContentLoaded', function() {
     initNavigation();
     initQuests();
     initModal();
+    initRoulette();
     startTimers();
-    loadCases();
-    loadRaffles();
 });
 
 // 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ
@@ -83,7 +31,7 @@ async function loadUserProfile() {
         if (!response.ok) throw new Error('Ошибка загрузки профиля');
         
         currentUser = await response.json();
-        updateUserData();
+        await loadUserData();
         renderProfile();
         
     } catch (error) {
@@ -92,66 +40,118 @@ async function loadUserProfile() {
     }
 }
 
-function updateUserData() {
-    if (currentUser) {
-        userData.balance = currentUser.balance || 0;
-        userData.referrals = currentUser.referral_count || 0;
-        
-        // Загружаем дополнительные данные из localStorage
-        const savedData = localStorage.getItem(`userData_${currentUser.user_id}`);
-        if (savedData) {
-            const parsed = JSON.parse(savedData);
-            Object.assign(userData, parsed);
+// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ ИЗ БАЗЫ
+async function loadUserData() {
+    if (!currentUser) return;
+    
+    try {
+        // Загружаем данные пользователя
+        const response = await fetch(`${API_URL}/user/data/${currentUser.user_id}`);
+        if (response.ok) {
+            userData = await response.json();
+        } else {
+            // Создаем начальные данные
+            userData = {
+                user_id: currentUser.user_id,
+                balance: currentUser.balance || 0,
+                daily_bonus: {
+                    count: 0,
+                    last_claim: null,
+                    current_reward: 10
+                },
+                quests: {
+                    subscribe: { completed: 0, last_claim: null },
+                    name: { completed: 0, last_claim: null },
+                    ref_desc: { completed: 0, last_claim: null }
+                },
+                referrals: currentUser.referral_count || 0,
+                cases_opened: 0,
+                inventory: [],
+                level: 1
+            };
+            await saveUserData();
         }
         
         updateUI();
+        loadCases();
+        loadRaffles();
+        loadInventory();
+        
+    } catch (error) {
+        console.error('Error loading user data:', error);
     }
 }
 
-function useTestData() {
-    currentUser = {
-        user_id: 6311564665,
-        first_name: "Тестовый",
-        last_name: "Пользователь",
-        username: "testuser",
-        balance: 150,
-        referral_count: 3,
-        photo_url: null
-    };
-    updateUserData();
+// 🔧 СОХРАНЕНИЕ ДАННЫХ В БАЗУ
+async function saveUserData() {
+    if (!currentUser) return;
+    
+    try {
+        await fetch(`${API_URL}/user/data/${currentUser.user_id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(userData)
+        });
+    } catch (error) {
+        console.error('Error saving user data:', error);
+    }
+}
+
+// 🔧 ОБНОВЛЕНИЕ БАЛАНСА В БАЗЕ
+async function updateBalance(newBalance) {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ balance: newBalance })
+        });
+        
+        if (response.ok) {
+            currentUser.balance = newBalance;
+            userData.balance = newBalance;
+        }
+    } catch (error) {
+        console.error('Error updating balance:', error);
+    }
 }
 
 // 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА
 function updateUI() {
+    if (!userData.daily_bonus) return;
+    
     // Баланс
     document.getElementById('balance').textContent = userData.balance;
     
     // Ежедневный бонус
-    document.getElementById('dailyReward').textContent = userData.dailyBonus.currentReward;
-    document.getElementById('dailyCompleted').textContent = userData.dailyBonus.count;
-    updateProgressBar('dailyProgress', userData.dailyBonus.count, 7);
+    const dailyBonus = userData.daily_bonus;
+    document.getElementById('dailyReward').textContent = dailyBonus.current_reward;
+    document.getElementById('dailyCompleted').textContent = dailyBonus.count;
+    updateProgressBar('dailyProgress', dailyBonus.count, 7);
     
     // Задания
-    document.getElementById('subscribeCompleted').textContent = userData.quests.subscribe.completed;
-    updateProgressBar('subscribeProgress', userData.quests.subscribe.completed, 10);
+    const quests = userData.quests || {};
+    document.getElementById('subscribeCompleted').textContent = quests.subscribe?.completed || 0;
+    updateProgressBar('subscribeProgress', quests.subscribe?.completed || 0, 10);
     
-    document.getElementById('nameCompleted').textContent = userData.quests.name.completed;
-    updateProgressBar('nameProgress', userData.quests.name.completed, 10);
+    document.getElementById('nameCompleted').textContent = quests.name?.completed || 0;
+    updateProgressBar('nameProgress', quests.name?.completed || 0, 10);
     
-    document.getElementById('refDescCompleted').textContent = userData.quests.refDesc.completed;
-    updateProgressBar('refDescProgress', userData.quests.refDesc.completed, 10);
+    document.getElementById('refDescCompleted').textContent = quests.ref_desc?.completed || 0;
+    updateProgressBar('refDescProgress', quests.ref_desc?.completed || 0, 10);
     
     // Рефералы
-    document.getElementById('referralCount').textContent = userData.referrals;
-    updateProgressBar('referralProgress', userData.referrals, 10);
-    
-    // Профиль
-    renderProfile();
+    document.getElementById('referralCount').textContent = userData.referrals || 0;
+    updateProgressBar('referralProgress', userData.referrals || 0, 10);
 }
 
 function updateProgressBar(elementId, current, max) {
     const progress = Math.min((current / max) * 100, 100);
-    document.getElementById(elementId).style.width = `${progress}%`;
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.style.width = `${progress}%`;
+    }
 }
 
 // 🔧 НАВИГАЦИЯ
@@ -192,20 +192,11 @@ function loadTabContent(tab) {
 
 // 🔧 ЗАДАНИЯ
 function initQuests() {
-    // Ежедневный бонус
     document.getElementById('dailyButton').addEventListener('click', claimDailyBonus);
-    
-    // Подписка на канал
     document.getElementById('subscribeButton').addEventListener('click', checkSubscription);
-    
-    // Имя бота в фамилии
     document.getElementById('nameButton').addEventListener('click', checkNameInBio);
-    
-    // Реф. ссылка в описании
     document.getElementById('refDescButton').addEventListener('click', checkRefInDescription);
     document.getElementById('copyRefButton').addEventListener('click', copyReferralLink);
-    
-    // Рефералы
     document.getElementById('referralButton').addEventListener('click', claimReferralRewards);
 }
 
@@ -216,8 +207,10 @@ function startTimers() {
 }
 
 function updateDailyTimer() {
+    if (!userData.daily_bonus) return;
+    
     const now = Date.now();
-    const lastClaim = userData.dailyBonus.lastClaim;
+    const lastClaim = userData.daily_bonus.last_claim ? new Date(userData.daily_bonus.last_claim).getTime() : null;
     const cooldown = 60 * 1000; // 1 минута
     const button = document.getElementById('dailyButton');
     const timer = document.getElementById('dailyTimer');
@@ -225,130 +218,95 @@ function updateDailyTimer() {
     if (!lastClaim || (now - lastClaim) >= cooldown) {
         button.disabled = false;
         button.textContent = 'Забрать';
-        timer.textContent = 'Доступно сейчас!';
+        if (timer) timer.textContent = 'Доступно сейчас!';
     } else {
         const remaining = cooldown - (now - lastClaim);
         const seconds = Math.ceil(remaining / 1000);
         button.disabled = true;
         button.textContent = 'Забрать';
-        timer.textContent = `Доступно через: ${seconds} сек`;
+        if (timer) timer.textContent = `Доступно через: ${seconds} сек`;
     }
 }
 
 async function claimDailyBonus() {
-    if (userData.dailyBonus.count >= 7) {
+    if (!userData.daily_bonus || userData.daily_bonus.count >= 7) {
         showNotification('❌ Достигнут лимит бонусов на сегодня', 'error');
         return;
     }
     
-    userData.dailyBonus.count++;
-    userData.balance += userData.dailyBonus.currentReward;
-    userData.dailyBonus.lastClaim = Date.now();
-    userData.dailyBonus.currentReward += 10;
+    const newBalance = userData.balance + userData.daily_bonus.current_reward;
     
-    showNotification(`🎉 +${userData.dailyBonus.currentReward - 10} монет!`, 'success');
+    // Обновляем локальные данные
+    userData.daily_bonus.count++;
+    userData.daily_bonus.last_claim = new Date().toISOString();
+    userData.daily_bonus.current_reward += 10;
+    userData.balance = newBalance;
+    
+    // Сохраняем в базу
+    await updateBalance(newBalance);
+    await saveUserData();
+    
+    showNotification(`🎉 +${userData.daily_bonus.current_reward - 10} монет!`, 'success');
     updateUI();
-    saveUserData();
-    
-    // Обновляем API
-    await updateBalance();
 }
 
-// 🔧 ПОДПИСКА НА КАНАЛ
+// 🔧 ПРОВЕРКА ЗАДАНИЙ TELEGRAM
 async function checkSubscription() {
-    const quest = userData.quests.subscribe;
-    const now = new Date().toDateString();
-    
-    if (quest.lastClaim === now) {
-        showNotification('❌ Уже получали награду сегодня', 'error');
-        return;
-    }
-    
-    // В реальном приложении здесь будет проверка через Telegram API
-    // Пока используем эмуляцию с 70% шансом успеха
-    const isSubscribed = await simulateTelegramCheck('channel_subscription');
-    
-    if (isSubscribed) {
-        quest.completed++;
-        quest.lastClaim = now;
-        userData.balance += 100;
-        
-        showNotification('🎉 +100 монет за подписку!', 'success');
-        updateUI();
-        saveUserData();
-        await updateBalance();
-    } else {
-        // Перенаправляем в канал
-        window.open('https://t.me/CS2DropZone', '_blank');
-        showNotification('📢 Подпишитесь на канал и попробуйте снова', 'info');
-    }
+    await processQuest('subscribe', 100, 'канал');
 }
 
-// 🔧 ИМЯ БОТА В ФАМИЛИИ
 async function checkNameInBio() {
-    // В реальном приложении здесь будет проверка через Telegram API
-    const hasBotInName = await simulateTelegramCheck('bot_in_bio');
-    
-    if (hasBotInName) {
-        const quest = userData.quests.name;
-        const now = new Date().toDateString();
-        
-        if (quest.lastClaim === now) {
-            showNotification('❌ Уже получали награду сегодня', 'error');
-            return;
-        }
-        
-        quest.completed++;
-        quest.lastClaim = now;
-        userData.balance += 50;
-        
-        showNotification('🎉 +50 монет! Бот найден в фамилии', 'success');
-        updateUI();
-        saveUserData();
-        await updateBalance();
-    } else {
-        showNameQuestModal();
-    }
+    await processQuest('name', 50, 'имя бота в фамилии');
 }
 
-// 🔧 РЕФ. ССЫЛКА В ОПИСАНИИ
 async function checkRefInDescription() {
-    const quest = userData.quests.refDesc;
+    await processQuest('ref_desc', 20, 'реф. ссылку в описании');
+}
+
+async function processQuest(questType, reward, questName) {
+    const quest = userData.quests[questType];
     const now = new Date().toDateString();
     
-    if (quest.lastClaim === now) {
+    if (quest.last_claim === now) {
         showNotification('❌ Уже получали награду сегодня', 'error');
         return;
     }
     
-    // В реальном приложении здесь будет проверка через Telegram API
-    const hasRefInBio = await simulateTelegramCheck('ref_in_bio');
+    // Эмуляция проверки через Telegram API
+    const isCompleted = await simulateTelegramCheck(questType);
     
-    if (hasRefInBio) {
-        quest.completed++;
-        quest.lastClaim = now;
-        userData.balance += 20;
+    if (isCompleted) {
+        const newBalance = userData.balance + reward;
         
-        showNotification('🎉 +20 монет! Реф. ссылка найдена', 'success');
+        // Обновляем локальные данные
+        quest.completed++;
+        quest.last_claim = now;
+        userData.balance = newBalance;
+        
+        // Сохраняем в базу
+        await updateBalance(newBalance);
+        await saveUserData();
+        
+        showNotification(`🎉 +${reward} монет за ${questName}!`, 'success');
         updateUI();
-        saveUserData();
-        await updateBalance();
     } else {
-        showNotification('❌ Реф. ссылка не найдена в описании профиля', 'error');
+        if (questType === 'name') {
+            showNameQuestModal();
+        } else if (questType === 'subscribe') {
+            window.open('https://t.me/CS2DropZone', '_blank');
+            showNotification('📢 Подпишитесь на канал и попробуйте снова', 'info');
+        } else {
+            showNotification(`❌ Задание не выполнено. Добавьте ${questName}`, 'error');
+        }
     }
 }
 
-// 🔧 ЭМУЛЯЦИЯ ПРОВЕРКИ TELEGRAM
 async function simulateTelegramCheck(type) {
-    // В реальном приложении здесь будет вызов Telegram API
-    // Пока используем случайный результат с разной вероятностью
-    
     const probabilities = {
-        'channel_subscription': 0.7,    // 70% шанс что подписан
-        'bot_in_bio': 0.4,              // 40% шанс что добавил бота в фамилию
-        'ref_in_bio': 0.3               // 30% шанс что добавил реф. ссылку
+        'subscribe': 0.7,
+        'name': 0.4,
+        'ref_desc': 0.3
     };
-    
     return Math.random() < probabilities[type];
 }
 
@@ -369,81 +327,313 @@ async function claimReferralRewards() {
     const rewards = Math.min(userData.referrals, 10) * 100;
     
     if (rewards > 0) {
-        userData.balance += rewards;
+        const newBalance = userData.balance + rewards;
+        
+        // Обновляем локальные данные
+        userData.balance = newBalance;
+        
+        // Сохраняем в базу
+        await updateBalance(newBalance);
+        await saveUserData();
+        
         showNotification(`🎉 +${rewards} монет за рефералов!`, 'success');
         updateUI();
-        saveUserData();
-        await updateBalance();
     } else {
         showNotification('❌ Нет доступных наград за рефералов', 'error');
     }
 }
 
 // 🔧 КЕЙСЫ
-function loadCases() {
-    const casesGrid = document.getElementById('casesGrid');
-    
-    casesGrid.innerHTML = cases.map(caseItem => `
-        <div class="case-card" onclick="openCase(${caseItem.id})">
-            <div class="case-image">
-                <img src="${caseItem.image}" alt="${caseItem.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='${caseItem.name}';">
+async function loadCases() {
+    try {
+        const response = await fetch(`${API_URL}/cases`);
+        let casesData = [];
+        
+        if (response.ok) {
+            casesData = await response.json();
+        } else {
+            // Тестовые данные
+            casesData = [
+                {
+                    id: 1,
+                    name: "Кейс Grunt",
+                    price: 100,
+                    image: "https://cs-shot.pro/images/new2/Grunt.png",
+                    total_opened: 1542,
+                    items: [
+                        { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" },
+                        { name: "AWP | Dragon Lore", price: "10000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: "Кейс Lurk",
+                    price: 200,
+                    image: "https://cs-shot.pro/images/new2/Lurk.png",
+                    total_opened: 892,
+                    items: [
+                        { name: "M4A4 | Howl", price: "8000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLkjYbf7itX6vytbbZSKOmsHGKU1edxtfNWQyC0nQlptWWEzd-qd3mVbgR2WZYiFuUMtUG7x4HhYeLhs1fZiN1DnC6viH4Y7TErvbgp6HjWjQ" },
+                        { name: "Knife | Fade", price: "12000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwi5Hf_jdk4OSrerRsM-OsCXWRx9F3peZWRyyygwRp527cn478dXyXbAJ2DZV2QucK5BDukoexMO3m4QWN2o1Hyiz-ii4bvTErvbhWWiFhog" }
+                    ]
+                }
+            ];
+        }
+        
+        const casesGrid = document.getElementById('casesGrid');
+        casesGrid.innerHTML = casesData.map(caseItem => `
+            <div class="case-card" onclick="showCaseDetails(${caseItem.id})">
+                <div class="case-image">
+                    <img src="${caseItem.image}" alt="${caseItem.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='${caseItem.name}';">
+                </div>
+                <div class="case-title">${caseItem.name}</div>
+                <div class="case-price">💎 ${caseItem.price} монет</div>
+                <div class="case-stats">Открыто: ${caseItem.total_opened} раз</div>
             </div>
-            <div class="case-title">${caseItem.name}</div>
-            <div class="case-price">💎 ${caseItem.price} монет</div>
-            <div class="case-stats">Открыто: ${caseItem.opened} раз</div>
-        </div>
-    `).join('');
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error loading cases:', error);
+    }
 }
 
-function openCase(caseId) {
-    const caseItem = cases.find(c => c.id === caseId);
+function showCaseDetails(caseId) {
+    const caseItem = getCaseById(caseId);
     if (!caseItem) return;
     
-    if (userData.balance < caseItem.price) {
-        showNotification('❌ Недостаточно монет для открытия кейса', 'error');
-        return;
+    currentCase = caseItem;
+    showRoulette(caseItem);
+}
+
+function getCaseById(caseId) {
+    // В реальном приложении здесь будет запрос к API
+    const testCases = [
+        {
+            id: 1,
+            name: "Кейс Grunt",
+            price: 100,
+            image: "https://cs-shot.pro/images/new2/Grunt.png",
+            total_opened: 1542,
+            items: [
+                { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" },
+                { name: "AWP | Dragon Lore", price: "10000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" }
+            ]
+        }
+    ];
+    return testCases.find(c => c.id === caseId);
+}
+
+// 🔧 РУЛЕТКА
+function initRoulette() {
+    document.getElementById('spinButton').addEventListener('click', spinRoulette);
+    document.getElementById('closeRoulette').addEventListener('click', closeRoulette);
+}
+
+function showRoulette(caseItem) {
+    const container = document.getElementById('rouletteContainer');
+    const title = document.getElementById('rouletteTitle');
+    const itemsContainer = document.getElementById('rouletteItems');
+    const price = document.getElementById('casePrice');
+    const spinButton = document.getElementById('spinButton');
+    const result = document.getElementById('rouletteResult');
+    const closeBtn = document.getElementById('closeRoulette');
+    
+    title.textContent = caseItem.name;
+    price.textContent = caseItem.price;
+    
+    // Показываем предметы кейса
+    itemsContainer.innerHTML = caseItem.items.map(item => `
+        <div class="roulette-item">
+            <img src="${item.image}" alt="${item.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='🎮';">
+            <div class="roulette-item-name">${item.name}</div>
+        </div>
+    `).join('');
+    
+    // Сбрасываем состояние
+    result.style.display = 'none';
+    closeBtn.style.display = 'none';
+    spinButton.style.display = 'block';
+    spinButton.disabled = userData.balance < caseItem.price;
+    
+    container.style.display = 'flex';
+}
+
+async function spinRoulette() {
+    if (!currentCase) return;
+    
+    const spinButton = document.getElementById('spinButton');
+    const result = document.getElementById('rouletteResult');
+    const closeBtn = document.getElementById('closeRoulette');
+    const items = document.querySelectorAll('.roulette-item');
+    
+    // Блокируем кнопку
+    spinButton.disabled = true;
+    spinButton.textContent = 'Крутится...';
+    
+    // Спиним рулетку
+    const spinDuration = 3000;
+    const startTime = Date.now();
+    const winnerIndex = Math.floor(Math.random() * currentCase.items.length);
+    const winnerItem = currentCase.items[winnerIndex];
+    
+    // Анимация вращения
+    let animationFrame;
+    function animate() {
+        const elapsed = Date.now() - startTime;
+        const progress = Math.min(elapsed / spinDuration, 1);
+        
+        // Подсвечиваем случайный предмет во время вращения
+        items.forEach(item => item.classList.remove('active'));
+        const randomIndex = Math.floor(Math.random() * items.length);
+        items[randomIndex].classList.add('active');
+        
+        if (progress < 1) {
+            animationFrame = requestAnimationFrame(animate);
+        } else {
+            // Завершаем на победном предмете
+            items.forEach(item => item.classList.remove('active'));
+            items[winnerIndex].classList.add('active');
+            
+            // Показываем результат
+            showRouletteResult(winnerItem);
+        }
     }
     
-    // Спиним кейс
-    const randomItem = caseItem.items[Math.floor(Math.random() * caseItem.items.length)];
+    animationFrame = requestAnimationFrame(animate);
     
-    // Вычитаем стоимость
-    userData.balance -= caseItem.price;
-    caseItem.opened++;
-    userData.casesOpened++;
+    // Обновляем баланс и инвентарь
+    const newBalance = userData.balance - currentCase.price;
+    userData.balance = newBalance;
+    userData.cases_opened++;
+    userData.inventory.push(winnerItem);
     
-    // Добавляем предмет в инвентарь
-    userData.inventory.push(randomItem);
+    // Сохраняем в базу
+    await updateBalance(newBalance);
+    await saveUserData();
     
-    showNotification(`🎉 Вы выиграли: ${randomItem.name}!`, 'success');
+    // Обновляем UI
     updateUI();
-    saveUserData();
-    updateBalance();
+}
+
+function showRouletteResult(item) {
+    const result = document.getElementById('rouletteResult');
+    const spinButton = document.getElementById('spinButton');
+    const closeBtn = document.getElementById('closeRoulette');
     
-    // Обновляем инвентарь если открыта вкладка
-    if (document.getElementById('inventory').classList.contains('active')) {
-        loadInventory();
-    }
+    result.innerHTML = `
+        <div style="text-align: center;">
+            <div style="font-size: 18px; color: #ffd700; margin-bottom: 10px;">🎉 Поздравляем!</div>
+            <div style="font-weight: bold; margin-bottom: 5px;">${item.name}</div>
+            <div style="color: #ff6b35;">Цена: $${item.price}</div>
+        </div>
+    `;
+    
+    result.style.display = 'block';
+    spinButton.style.display = 'none';
+    closeBtn.style.display = 'block';
+}
+
+function closeRoulette() {
+    document.getElementById('rouletteContainer').style.display = 'none';
+    loadInventory(); // Обновляем инвентарь
 }
 
 // 🔧 ИНВЕНТАРЬ
-function loadInventory() {
-    const inventoryGrid = document.getElementById('inventoryGrid');
-    
-    if (userData.inventory.length === 0) {
-        inventoryGrid.innerHTML = '<div style="text-align: center; padding: 40px; opacity: 0.7;">Инвентарь пуст</div>';
-        return;
-    }
-    
-    inventoryGrid.innerHTML = userData.inventory.map(item => `
-        <div class="inventory-item">
-            <div class="item-image">
-                <img src="${item.image}" alt="${item.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='🎮';">
+async function loadInventory() {
+    try {
+        const inventoryGrid = document.getElementById('inventoryGrid');
+        
+        if (!userData.inventory || userData.inventory.length === 0) {
+            inventoryGrid.innerHTML = '<div style="text-align: center; padding: 40px; opacity: 0.7;">Инвентарь пуст</div>';
+            return;
+        }
+        
+        inventoryGrid.innerHTML = userData.inventory.map(item => `
+            <div class="inventory-item">
+                <div class="item-image">
+                    <img src="${item.image}" alt="${item.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='🎮';">
+                </div>
+                <div class="item-name">${item.name}</div>
+                <div class="item-price">$${item.price}</div>
             </div>
-            <div class="item-name">${item.name}</div>
-            <div class="item-price">$${item.price}</div>
+        `).join('');
+        
+    } catch (error) {
+        console.error('Error loading inventory:', error);
+    }
+}
+
+// 🔧 РОЗЫГРЫШИ
+async function loadRaffles() {
+    try {
+        const response = await fetch(`${API_URL}/raffles`);
+        let raffles = [];
+        
+        if (response.ok) {
+            raffles = await response.json();
+        } else {
+            // Тестовые данные
+            raffles = [
+                { 
+                    id: 1, 
+                    name: 'AK-47 | Годовая подписка', 
+                    end_date: '2024-12-31T23:59:59', 
+                    participants: 1245,
+                    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY'
+                },
+                { 
+                    id: 2, 
+                    name: 'AWP | Элитный кейс', 
+                    end_date: '2024-12-25T23:59:59', 
+                    participants: 893,
+                    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q'
+                }
+            ];
+        }
+        
+        renderRaffles(raffles);
+        initRaffleControls(raffles);
+        
+    } catch (error) {
+        console.error('Error loading raffles:', error);
+    }
+}
+
+function renderRaffles(raffles) {
+    const raffleSlider = document.getElementById('raffleSlider');
+    
+    raffleSlider.innerHTML = raffles.map(raffle => `
+        <div class="raffle-card">
+            <div class="raffle-image">
+                <img src="${raffle.image}" alt="${raffle.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" onerror="this.style.display='none';">
+                ${raffle.name}
+            </div>
+            <div class="raffle-info">
+                <span>⏰ ${new Date(raffle.end_date).toLocaleDateString()}</span>
+                <span>👥 ${raffle.participants}</span>
+            </div>
+            <button class="raffle-button" onclick="participateRaffle(${raffle.id})">Участвовать</button>
         </div>
     `).join('');
+}
+
+function initRaffleControls(raffles) {
+    const prevBtn = document.getElementById('prevRaffle');
+    const nextBtn = document.getElementById('nextRaffle');
+    const slider = document.getElementById('raffleSlider');
+    
+    prevBtn.addEventListener('click', () => {
+        currentRaffleIndex = Math.max(0, currentRaffleIndex - 1);
+        slider.scrollTo({ left: currentRaffleIndex * 300, behavior: 'smooth' });
+    });
+    
+    nextBtn.addEventListener('click', () => {
+        currentRaffleIndex = Math.min(raffles.length - 1, currentRaffleIndex + 1);
+        slider.scrollTo({ left: currentRaffleIndex * 300, behavior: 'smooth' });
+    });
+}
+
+async function participateRaffle(raffleId) {
+    showNotification('✅ Вы участвуете в розыгрыше!', 'success');
 }
 
 // 🔧 ПРОФИЛЬ
@@ -454,16 +644,16 @@ function renderProfile() {
         `${currentUser.first_name} ${currentUser.last_name || ''}`;
     document.getElementById('profileUsername').textContent = 
         `@${currentUser.username || 'username'}`;
-    document.getElementById('profileBalance').textContent = userData.balance;
-    document.getElementById('profileReferrals').textContent = userData.referrals;
-    document.getElementById('profileCases').textContent = userData.casesOpened;
-    document.getElementById('profileItems').textContent = userData.inventory.length;
-    document.getElementById('profileLevel').textContent = userData.level;
+    document.getElementById('profileBalance').textContent = userData.balance || 0;
+    document.getElementById('profileReferrals').textContent = userData.referrals || 0;
+    document.getElementById('profileCases').textContent = userData.cases_opened || 0;
+    document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
+    document.getElementById('profileLevel').textContent = userData.level || 1;
     
     // Аватар
     const avatar = document.getElementById('profileAvatar');
     if (currentUser.photo_url) {
-        avatar.innerHTML = `<img src="${currentUser.photo_url}" alt="Avatar">`;
+        avatar.innerHTML = `<img src="${currentUser.photo_url}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
     }
 }
 
@@ -500,28 +690,6 @@ function showNameQuestModal() {
     modal.style.display = 'flex';
 }
 
-// 🔧 РОЗЫГРЫШИ
-function loadRaffles() {
-    const raffleSlider = document.getElementById('raffleSlider');
-    
-    const raffles = [
-        { id: 1, name: 'AK-47 | Годовая подписка', endTime: '2024-12-31', participants: 1245 },
-        { id: 2, name: 'AWP | Элитный кейс', endTime: '2024-12-25', participants: 893 },
-        { id: 3, name: 'Нож | Легендарный', endTime: '2024-12-20', participants: 2156 }
-    ];
-    
-    raffleSlider.innerHTML = raffles.map(raffle => `
-        <div class="raffle-card">
-            <div class="raffle-image">${raffle.name}</div>
-            <div class="raffle-info">
-                <span>⏰ ${raffle.endTime}</span>
-                <span>👥 ${raffle.participants}</span>
-            </div>
-            <button class="raffle-button">Участвовать</button>
-        </div>
-    `).join('');
-}
-
 // 🔧 УТИЛИТЫ
 function showNotification(message, type = 'success') {
     const notification = document.createElement('div');
@@ -538,24 +706,40 @@ function showNotification(message, type = 'success') {
     }, 3000);
 }
 
-function saveUserData() {
-    if (currentUser) {
-        localStorage.setItem(`userData_${currentUser.user_id}`, JSON.stringify(userData));
-    }
-}
-
-async function updateBalance() {
-    if (!currentUser) return;
-    
-    try {
-        await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ balance: userData.balance })
-        });
-    } catch (error) {
-        console.error('Error updating balance:', error);
-    }
+function useTestData() {
+    currentUser = {
+        user_id: 6311564665,
+        first_name: "Тестовый",
+        last_name: "Пользователь",
+        username: "testuser",
+        balance: 150,
+        referral_count: 3,
+        photo_url: null
+    };
+    userData = {
+        user_id: currentUser.user_id,
+        balance: currentUser.balance,
+        daily_bonus: {
+            count: 2,
+            last_claim: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
+            current_reward: 30
+        },
+        quests: {
+            subscribe: { completed: 3, last_claim: new Date().toDateString() },
+            name: { completed: 1, last_claim: null },
+            ref_desc: { completed: 0, last_claim: null }
+        },
+        referrals: currentUser.referral_count,
+        cases_opened: 5,
+        inventory: [
+            { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" }
+        ],
+        level: 1
+    };
+    updateUI();
+    loadCases();
+    loadRaffles();
+    loadInventory();
 }
 
 function showWarningMessage() {
