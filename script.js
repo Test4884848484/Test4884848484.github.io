@@ -35,10 +35,7 @@ async function loadUserProfile() {
         currentUser = fullData.user;
         userData = fullData.data;
         
-        console.log('✅ Данные пользователя загружены:', {
-            user: currentUser,
-            data: userData
-        });
+        console.log('✅ Данные пользователя загружены:', currentUser);
         
         renderProfile();
         updateUI();
@@ -48,36 +45,404 @@ async function loadUserProfile() {
         
     } catch (error) {
         console.error('Error loading user:', error);
-        // Пробуем загрузить базовые данные
-        try {
-            const basicResponse = await fetch(`${API_URL}/user/${telegramUserId}`);
-            if (basicResponse.ok) {
-                currentUser = await basicResponse.json();
-                userData = {
-                    balance: currentUser.balance || 0,
-                    daily_bonus: { count: 0, last_claim: null, current_reward: 10 },
-                    quests: {
-                        subscribe: { completed: 0, last_claim: null },
-                        name: { completed: 0, last_claim: null },
-                        ref_desc: { completed: 0, last_claim: null }
-                    },
-                    referrals: currentUser.referral_count || 0,
-                    cases_opened: 0,
-                    inventory: [],
-                    level: 1
-                };
-                renderProfile();
-                updateUI();
-            } else {
-                useTestData();
-            }
-        } catch (e) {
-            useTestData();
-        }
+        useTestData();
     }
 }
 
-// 🔧 СОХРАНЕНИЕ ДАННЫХ В БАЗУ
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА С ТАЙМЕРАМИ
+function updateUI() {
+    if (!userData.daily_bonus) return;
+    
+    // Баланс
+    document.getElementById('balance').textContent = userData.balance;
+    
+    // Ежедневный бонус
+    const dailyBonus = userData.daily_bonus;
+    document.getElementById('dailyReward').textContent = dailyBonus.current_reward;
+    document.getElementById('dailyCompleted').textContent = dailyBonus.count;
+    updateProgressBar('dailyProgress', dailyBonus.count, 7);
+    updateQuestTimer('daily', dailyBonus.last_claim);
+    
+    // Задания
+    const quests = userData.quests || {};
+    document.getElementById('subscribeCompleted').textContent = quests.subscribe?.completed || 0;
+    updateProgressBar('subscribeProgress', quests.subscribe?.completed || 0, 10);
+    updateQuestTimer('subscribe', quests.subscribe?.last_claim);
+    
+    document.getElementById('nameCompleted').textContent = quests.name?.completed || 0;
+    updateProgressBar('nameProgress', quests.name?.completed || 0, 10);
+    updateQuestTimer('name', quests.name?.last_claim);
+    
+    document.getElementById('refDescCompleted').textContent = quests.ref_desc?.completed || 0;
+    updateProgressBar('refDescProgress', quests.ref_desc?.completed || 0, 10);
+    updateQuestTimer('ref_desc', quests.ref_desc?.last_claim);
+    
+    // Рефералы
+    document.getElementById('referralCount').textContent = userData.referrals || 0;
+    updateProgressBar('referralProgress', userData.referrals || 0, 10);
+    updateQuestTimer('referral', userData.referral_last_claim);
+}
+
+function updateProgressBar(elementId, current, max) {
+    const progress = Math.min((current / max) * 100, 100);
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.style.width = `${progress}%`;
+    }
+}
+
+function updateQuestTimer(questType, lastClaim) {
+    const now = new Date();
+    const lastClaimTime = lastClaim ? new Date(lastClaim) : null;
+    const cooldown = 60 * 1000; // 1 минута
+    
+    let button, timer;
+    
+    switch(questType) {
+        case 'daily':
+            button = document.getElementById('dailyButton');
+            timer = document.getElementById('dailyTimer');
+            break;
+        case 'subscribe':
+            button = document.getElementById('subscribeButton');
+            timer = document.getElementById('subscribeTimer');
+            break;
+        case 'name':
+            button = document.getElementById('nameButton');
+            timer = document.getElementById('nameTimer');
+            break;
+        case 'ref_desc':
+            button = document.getElementById('refDescButton');
+            timer = document.getElementById('refDescTimer');
+            break;
+        case 'referral':
+            button = document.getElementById('referralButton');
+            timer = document.getElementById('referralTimer');
+            break;
+    }
+    
+    if (!button) return;
+    
+    if (!lastClaimTime || (now - lastClaimTime) >= cooldown) {
+        button.disabled = false;
+        if (timer) timer.textContent = 'Доступно сейчас!';
+    } else {
+        const remaining = cooldown - (now - lastClaimTime);
+        const seconds = Math.ceil(remaining / 1000);
+        button.disabled = true;
+        if (timer) timer.textContent = `Доступно через: ${seconds} сек`;
+    }
+}
+
+// 🔧 ТАЙМЕРЫ ДЛЯ ВСЕХ ЗАДАНИЙ
+function startTimers() {
+    setInterval(() => {
+        if (userData.daily_bonus) {
+            updateQuestTimer('daily', userData.daily_bonus.last_claim);
+            updateQuestTimer('subscribe', userData.quests?.subscribe?.last_claim);
+            updateQuestTimer('name', userData.quests?.name?.last_claim);
+            updateQuestTimer('ref_desc', userData.quests?.ref_desc?.last_claim);
+            updateQuestTimer('referral', userData.referral_last_claim);
+        }
+    }, 1000);
+}
+
+// 🔧 ЗАДАНИЯ С ПРОВЕРКАМИ ЧЕРЕЗ TELEGRAM API
+async function claimDailyBonus() {
+    if (!userData.daily_bonus || userData.daily_bonus.count >= 7) {
+        showNotification('❌ Достигнут лимит бонусов на сегодня', 'error');
+        return;
+    }
+    
+    if (!await checkCooldown('daily')) return;
+    
+    const reward = userData.daily_bonus.current_reward;
+    
+    try {
+        // Обновляем баланс и счетчик
+        const response = await fetch(`${API_URL}/user/quest-reward/${currentUser.user_id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                questType: 'daily', 
+                reward: reward 
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            // Обновляем кулдаун
+            await updateCooldown('daily');
+            
+            // Обновляем локальные данные
+            userData.balance = result.newBalance;
+            userData.daily_bonus.count++;
+            userData.daily_bonus.current_reward += 10;
+            userData.daily_bonus.last_claim = new Date().toISOString();
+            
+            showNotification(`🎉 +${reward} монет!`, 'success');
+            updateUI();
+        }
+    } catch (error) {
+        console.error('Error claiming daily bonus:', error);
+        showNotification('❌ Ошибка при получении награды', 'error');
+    }
+}
+
+async function checkSubscription() {
+    if (!await checkCooldown('subscribe')) return;
+    
+    try {
+        // Проверяем подписку через Telegram API
+        const response = await fetch(`${API_URL}/check-subscription/${currentUser.user_id}`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            if (result.subscribed) {
+                // Начисляем награду
+                const rewardResponse = await fetch(`${API_URL}/user/quest-reward/${currentUser.user_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        questType: 'subscribe', 
+                        reward: 100 
+                    })
+                });
+                
+                if (rewardResponse.ok) {
+                    const rewardResult = await rewardResponse.json();
+                    
+                    // Обновляем кулдаун
+                    await updateCooldown('subscribe');
+                    
+                    // Обновляем локальные данные
+                    userData.balance = rewardResult.newBalance;
+                    userData.quests.subscribe.completed++;
+                    userData.quests.subscribe.last_claim = new Date().toISOString();
+                    
+                    showNotification('🎉 +100 монет за подписку!', 'success');
+                    updateUI();
+                }
+            } else {
+                // Перенаправляем в канал
+                window.open('https://t.me/CS2DropZone', '_blank');
+                showNotification('📢 Подпишитесь на канал и попробуйте снова', 'info');
+            }
+        }
+    } catch (error) {
+        console.error('Error checking subscription:', error);
+        showNotification('❌ Ошибка проверки подписки', 'error');
+    }
+}
+
+async function checkNameInBio() {
+    if (!await checkCooldown('name')) return;
+    
+    try {
+        // Проверяем фамилию через Telegram API
+        const response = await fetch(`${API_URL}/check-bio/${currentUser.user_id}`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            if (result.hasBotInBio) {
+                // Начисляем награду
+                const rewardResponse = await fetch(`${API_URL}/user/quest-reward/${currentUser.user_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        questType: 'name', 
+                        reward: 50 
+                    })
+                });
+                
+                if (rewardResponse.ok) {
+                    const rewardResult = await rewardResponse.json();
+                    
+                    // Обновляем кулдаун
+                    await updateCooldown('name');
+                    
+                    // Обновляем локальные данные
+                    userData.balance = rewardResult.newBalance;
+                    userData.quests.name.completed++;
+                    userData.quests.name.last_claim = new Date().toISOString();
+                    
+                    showNotification('🎉 +50 монет! Бот найден в фамилии', 'success');
+                    updateUI();
+                }
+            } else {
+                showNameQuestModal();
+            }
+        }
+    } catch (error) {
+        console.error('Error checking name in bio:', error);
+        showNotification('❌ Ошибка проверки фамилии', 'error');
+    }
+}
+
+async function checkRefInDescription() {
+    if (!await checkCooldown('ref_desc')) return;
+    
+    try {
+        // Проверяем реферальную ссылку в описании
+        const response = await fetch(`${API_URL}/check-ref-in-bio/${currentUser.user_id}`, {
+            method: 'POST'
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            
+            if (result.hasRefInBio) {
+                // Начисляем награду
+                const rewardResponse = await fetch(`${API_URL}/user/quest-reward/${currentUser.user_id}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        questType: 'ref_desc', 
+                        reward: 20 
+                    })
+                });
+                
+                if (rewardResponse.ok) {
+                    const rewardResult = await rewardResponse.json();
+                    
+                    // Обновляем кулдаун
+                    await updateCooldown('ref_desc');
+                    
+                    // Обновляем локальные данные
+                    userData.balance = rewardResult.newBalance;
+                    userData.quests.ref_desc.completed++;
+                    userData.quests.ref_desc.last_claim = new Date().toISOString();
+                    
+                    showNotification('🎉 +20 монет! Реф. ссылка найдена', 'success');
+                    updateUI();
+                }
+            } else {
+                showNotification('❌ Реф. ссылка не найдена в описании профиля', 'error');
+            }
+        }
+    } catch (error) {
+        console.error('Error checking ref in description:', error);
+        showNotification('❌ Ошибка проверки описания', 'error');
+    }
+}
+
+async function claimReferralRewards() {
+    if (!await checkCooldown('referral')) return;
+    
+    const rewards = Math.min(userData.referrals, 10) * 100;
+    
+    if (rewards > 0) {
+        try {
+            // Обновляем баланс
+            const response = await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ balance: userData.balance + rewards })
+            });
+            
+            if (response.ok) {
+                // Обновляем кулдаун
+                await updateCooldown('referral');
+                
+                // Обновляем локальные данные
+                userData.balance += rewards;
+                userData.referral_last_claim = new Date().toISOString();
+                
+                // Сохраняем данные
+                await saveUserData();
+                
+                showNotification(`🎉 +${rewards} монет за рефералов!`, 'success');
+                updateUI();
+            }
+        } catch (error) {
+            console.error('Error claiming referral rewards:', error);
+            showNotification('❌ Ошибка при получении награды', 'error');
+        }
+    } else {
+        showNotification('❌ Нет доступных наград за рефералов', 'error');
+    }
+}
+
+// 🔧 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ДЛЯ ПРОВЕРОК
+async function checkCooldown(questType) {
+    const lastClaim = getLastClaim(questType);
+    const now = new Date();
+    const cooldown = 60 * 1000; // 1 минута
+    
+    if (lastClaim && (now - new Date(lastClaim)) < cooldown) {
+        const remaining = cooldown - (now - new Date(lastClaim));
+        const seconds = Math.ceil(remaining / 1000);
+        showNotification(`⏰ Попробуйте снова через ${seconds} секунд`, 'info');
+        return false;
+    }
+    
+    return true;
+}
+
+function getLastClaim(questType) {
+    switch(questType) {
+        case 'daily':
+            return userData.daily_bonus?.last_claim;
+        case 'subscribe':
+            return userData.quests?.subscribe?.last_claim;
+        case 'name':
+            return userData.quests?.name?.last_claim;
+        case 'ref_desc':
+            return userData.quests?.ref_desc?.last_claim;
+        case 'referral':
+            return userData.referral_last_claim;
+        default:
+            return null;
+    }
+}
+
+async function updateCooldown(questType) {
+    try {
+        await fetch(`${API_URL}/user/quest-cooldown/${currentUser.user_id}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ questType: questType })
+        });
+    } catch (error) {
+        console.error('Error updating cooldown:', error);
+    }
+}
+
+// 🔧 ПРОФИЛЬ С ЗАГРУЗКОЙ ФОТО ИЗ TELEGRAM
+function renderProfile() {
+    if (!currentUser) return;
+    
+    document.getElementById('profileName').textContent = 
+        `${currentUser.first_name} ${currentUser.last_name || ''}`;
+    document.getElementById('profileUsername').textContent = 
+        `@${currentUser.username || 'username'}`;
+    document.getElementById('profileBalance').textContent = userData.balance || 0;
+    document.getElementById('profileReferrals').textContent = userData.referrals || 0;
+    document.getElementById('profileCases').textContent = userData.cases_opened || 0;
+    document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
+    document.getElementById('profileLevel').textContent = userData.level || 1;
+    
+    // Аватар из Telegram
+    const avatar = document.getElementById('profileAvatar');
+    if (currentUser.photo_url) {
+        // Добавляем timestamp для избежания кеширования
+        const photoUrl = `${currentUser.photo_url}?t=${Date.now()}`;
+        avatar.innerHTML = `<img src="${photoUrl}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" onerror="this.style.display='none'; this.parentNode.innerHTML='👤';">`;
+    } else {
+        // Если фото нет, показываем первую букву имени
+        const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
+        avatar.innerHTML = `<span style="font-size: 24px;">${firstLetter}</span>`;
+    }
+}
+
+// 🔧 СОХРАНЕНИЕ ДАННЫХ
 async function saveUserData() {
     if (!currentUser) return;
     
@@ -92,80 +457,7 @@ async function saveUserData() {
     }
 }
 
-// 🔧 ОБНОВЛЕНИЕ БАЛАНСА В БАЗЕ
-async function updateBalance(newBalance) {
-    if (!currentUser) return;
-    
-    try {
-        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ balance: newBalance })
-        });
-        
-        if (response.ok) {
-            // Обновляем локальные данные
-            userData.balance = newBalance;
-            await saveUserData(); // Сохраняем все данные
-        }
-    } catch (error) {
-        console.error('Error updating balance:', error);
-    }
-}
-
-// 🔧 ДОБАВИТЬ ПРЕДМЕТ В ИНВЕНТАРЬ В БАЗУ
-async function addToInventory(item) {
-    if (!currentUser) return;
-    
-    try {
-        await fetch(`${API_URL}/user/inventory/${currentUser.user_id}`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(item)
-        });
-    } catch (error) {
-        console.error('Error adding to inventory:', error);
-    }
-}
-
-// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА
-function updateUI() {
-    if (!userData.daily_bonus) return;
-    
-    // Баланс
-    document.getElementById('balance').textContent = userData.balance;
-    
-    // Ежедневный бонус
-    const dailyBonus = userData.daily_bonus;
-    document.getElementById('dailyReward').textContent = dailyBonus.current_reward;
-    document.getElementById('dailyCompleted').textContent = dailyBonus.count;
-    updateProgressBar('dailyProgress', dailyBonus.count, 7);
-    
-    // Задания
-    const quests = userData.quests || {};
-    document.getElementById('subscribeCompleted').textContent = quests.subscribe?.completed || 0;
-    updateProgressBar('subscribeProgress', quests.subscribe?.completed || 0, 10);
-    
-    document.getElementById('nameCompleted').textContent = quests.name?.completed || 0;
-    updateProgressBar('nameProgress', quests.name?.completed || 0, 10);
-    
-    document.getElementById('refDescCompleted').textContent = quests.ref_desc?.completed || 0;
-    updateProgressBar('refDescProgress', quests.ref_desc?.completed || 0, 10);
-    
-    // Рефералы
-    document.getElementById('referralCount').textContent = userData.referrals || 0;
-    updateProgressBar('referralProgress', userData.referrals || 0, 10);
-}
-
-function updateProgressBar(elementId, current, max) {
-    const progress = Math.min((current / max) * 100, 100);
-    const element = document.getElementById(elementId);
-    if (element) {
-        element.style.width = `${progress}%`;
-    }
-}
-
-// 🔧 НАВИГАЦИЯ
+// 🔧 ОСТАЛЬНЫЕ ФУНКЦИИ (без изменений)
 function initNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -174,14 +466,12 @@ function initNavigation() {
         item.addEventListener('click', function() {
             const tab = this.getAttribute('data-tab');
             
-            // Обновляем активные элементы
             navItems.forEach(nav => nav.classList.remove('active'));
             tabContents.forEach(content => content.classList.remove('active'));
             
             this.classList.add('active');
             document.getElementById(tab).classList.add('active');
             
-            // Загружаем контент для вкладки
             loadTabContent(tab);
         });
     });
@@ -201,7 +491,6 @@ function loadTabContent(tab) {
     }
 }
 
-// 🔧 ЗАДАНИЯ
 function initQuests() {
     document.getElementById('dailyButton').addEventListener('click', claimDailyBonus);
     document.getElementById('subscribeButton').addEventListener('click', checkSubscription);
@@ -209,115 +498,6 @@ function initQuests() {
     document.getElementById('refDescButton').addEventListener('click', checkRefInDescription);
     document.getElementById('copyRefButton').addEventListener('click', copyReferralLink);
     document.getElementById('referralButton').addEventListener('click', claimReferralRewards);
-}
-
-// 🔧 ЕЖЕДНЕВНЫЙ БОНУС С СОХРАНЕНИЕМ ВРЕМЕНИ
-function startTimers() {
-    updateDailyTimer();
-    setInterval(updateDailyTimer, 1000);
-}
-
-function updateDailyTimer() {
-    if (!userData.daily_bonus) return;
-    
-    const now = new Date();
-    const lastClaim = userData.daily_bonus.last_claim ? new Date(userData.daily_bonus.last_claim) : null;
-    const cooldown = 60 * 1000; // 1 минута
-    const button = document.getElementById('dailyButton');
-    const timer = document.getElementById('dailyTimer');
-    
-    if (!lastClaim || (now - lastClaim) >= cooldown) {
-        button.disabled = false;
-        button.textContent = 'Забрать';
-        if (timer) timer.textContent = 'Доступно сейчас!';
-    } else {
-        const remaining = cooldown - (now - lastClaim);
-        const seconds = Math.ceil(remaining / 1000);
-        button.disabled = true;
-        button.textContent = 'Забрать';
-        if (timer) timer.textContent = `Доступно через: ${seconds} сек`;
-    }
-}
-
-async function claimDailyBonus() {
-    if (!userData.daily_bonus || userData.daily_bonus.count >= 7) {
-        showNotification('❌ Достигнут лимит бонусов на сегодня', 'error');
-        return;
-    }
-    
-    const newBalance = userData.balance + userData.daily_bonus.current_reward;
-    const now = new Date().toISOString();
-    
-    // Обновляем локальные данные
-    userData.daily_bonus.count++;
-    userData.daily_bonus.last_claim = now; // Сохраняем точное время
-    userData.daily_bonus.current_reward += 10;
-    userData.balance = newBalance;
-    
-    // Сохраняем в базу
-    await updateBalance(newBalance);
-    
-    showNotification(`🎉 +${userData.daily_bonus.current_reward - 10} монет!`, 'success');
-    updateUI();
-}
-
-// 🔧 ПРОВЕРКА ЗАДАНИЙ TELEGRAM
-async function checkSubscription() {
-    await processQuest('subscribe', 100, 'канал');
-}
-
-async function checkNameInBio() {
-    await processQuest('name', 50, 'имя бота в фамилии');
-}
-
-async function checkRefInDescription() {
-    await processQuest('ref_desc', 20, 'реф. ссылку в описании');
-}
-
-async function processQuest(questType, reward, questName) {
-    const quest = userData.quests[questType];
-    const now = new Date().toISOString().split('T')[0]; // Только дата
-    
-    if (quest.last_claim === now) {
-        showNotification('❌ Уже получали награду сегодня', 'error');
-        return;
-    }
-    
-    // Эмуляция проверки через Telegram API
-    const isCompleted = await simulateTelegramCheck(questType);
-    
-    if (isCompleted) {
-        const newBalance = userData.balance + reward;
-        
-        // Обновляем локальные данные
-        quest.completed++;
-        quest.last_claim = now; // Сохраняем дату
-        userData.balance = newBalance;
-        
-        // Сохраняем в базу
-        await updateBalance(newBalance);
-        
-        showNotification(`🎉 +${reward} монет за ${questName}!`, 'success');
-        updateUI();
-    } else {
-        if (questType === 'name') {
-            showNameQuestModal();
-        } else if (questType === 'subscribe') {
-            window.open('https://t.me/CS2DropZone', '_blank');
-            showNotification('📢 Подпишитесь на канал и попробуйте снова', 'info');
-        } else {
-            showNotification(`❌ Задание не выполнено. Добавьте ${questName}`, 'error');
-        }
-    }
-}
-
-async function simulateTelegramCheck(type) {
-    const probabilities = {
-        'subscribe': 0.7,
-        'name': 0.4,
-        'ref_desc': 0.3
-    };
-    return Math.random() < probabilities[type];
 }
 
 function copyReferralLink() {
@@ -332,441 +512,7 @@ function copyReferralLink() {
     });
 }
 
-// 🔧 РЕФЕРАЛЫ
-async function claimReferralRewards() {
-    const rewards = Math.min(userData.referrals, 10) * 100;
-    
-    if (rewards > 0) {
-        const newBalance = userData.balance + rewards;
-        
-        // Обновляем локальные данные
-        userData.balance = newBalance;
-        
-        // Сохраняем в базу
-        await updateBalance(newBalance);
-        
-        showNotification(`🎉 +${rewards} монет за рефералов!`, 'success');
-        updateUI();
-    } else {
-        showNotification('❌ Нет доступных наград за рефералов', 'error');
-    }
-}
-
-// 🔧 КЕЙСЫ
-async function loadCases() {
-    try {
-        const response = await fetch(`${API_URL}/cases`);
-        let casesData = [];
-        
-        if (response.ok) {
-            casesData = await response.json();
-        } else {
-            // Тестовые данные
-            casesData = [
-                {
-                    id: 1,
-                    name: "Кейс Grunt",
-                    price: 100,
-                    image: "https://cs-shot.pro/images/new2/Grunt.png",
-                    total_opened: 1542,
-                    items: [
-                        { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" },
-                        { name: "AWP | Dragon Lore", price: "10000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" }
-                    ]
-                },
-                {
-                    id: 2,
-                    name: "Кейс Lurk",
-                    price: 200,
-                    image: "https://cs-shot.pro/images/new2/Lurk.png",
-                    total_opened: 892,
-                    items: [
-                        { name: "M4A4 | Howl", price: "8000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLkjYbf7itX6vytbbZSKOmsHGKU1edxtfNWQyC0nQlptWWEzd-qd3mVbgR2WZYiFuUMtUG7x4HhYeLhs1fZiN1DnC6viH4Y7TErvbgp6HjWjQ" },
-                        { name: "Knife | Fade", price: "12000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwi5Hf_jdk4OSrerRsM-OsCXWRx9F3peZWRyyygwRp527cn478dXyXbAJ2DZV2QucK5BDukoexMO3m4QWN2o1Hyiz-ii4bvTErvbhWWiFhog" }
-                    ]
-                }
-            ];
-        }
-        
-        const casesGrid = document.getElementById('casesGrid');
-        casesGrid.innerHTML = casesData.map(caseItem => `
-            <div class="case-card" onclick="showCaseDetails(${caseItem.id})">
-                <div class="case-image">
-                    <img src="${caseItem.image}" alt="${caseItem.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='${caseItem.name}';">
-                </div>
-                <div class="case-title">${caseItem.name}</div>
-                <div class="case-price">💎 ${caseItem.price} монет</div>
-                <div class="case-stats">Открыто: ${caseItem.total_opened} раз</div>
-            </div>
-        `).join('');
-        
-    } catch (error) {
-        console.error('Error loading cases:', error);
-    }
-}
-
-function showCaseDetails(caseId) {
-    const caseItem = getCaseById(caseId);
-    if (!caseItem) return;
-    
-    currentCase = caseItem;
-    showRoulette(caseItem);
-}
-
-function getCaseById(caseId) {
-    // В реальном приложении здесь будет запрос к API
-    const testCases = [
-        {
-            id: 1,
-            name: "Кейс Grunt",
-            price: 100,
-            image: "https://cs-shot.pro/images/new2/Grunt.png",
-            total_opened: 1542,
-            items: [
-                { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" },
-                { name: "AWP | Dragon Lore", price: "10000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" }
-            ]
-        }
-    ];
-    return testCases.find(c => c.id === caseId);
-}
-
-// 🔧 РУЛЕТКА
-function initRoulette() {
-    document.getElementById('spinButton').addEventListener('click', spinRoulette);
-    document.getElementById('closeRoulette').addEventListener('click', closeRoulette);
-}
-
-function showRoulette(caseItem) {
-    const container = document.getElementById('rouletteContainer');
-    const title = document.getElementById('rouletteTitle');
-    const itemsContainer = document.getElementById('rouletteItems');
-    const price = document.getElementById('casePrice');
-    const spinButton = document.getElementById('spinButton');
-    const result = document.getElementById('rouletteResult');
-    const closeBtn = document.getElementById('closeRoulette');
-    
-    title.textContent = caseItem.name;
-    price.textContent = caseItem.price;
-    
-    // Показываем предметы кейса
-    itemsContainer.innerHTML = caseItem.items.map(item => `
-        <div class="roulette-item">
-            <img src="${item.image}" alt="${item.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='🎮';">
-            <div class="roulette-item-name">${item.name}</div>
-        </div>
-    `).join('');
-    
-    // Сбрасываем состояние
-    result.style.display = 'none';
-    closeBtn.style.display = 'none';
-    spinButton.style.display = 'block';
-    spinButton.disabled = userData.balance < caseItem.price;
-    
-    container.style.display = 'flex';
-}
-
-async function spinRoulette() {
-    if (!currentCase) return;
-    
-    const spinButton = document.getElementById('spinButton');
-    const result = document.getElementById('rouletteResult');
-    const closeBtn = document.getElementById('closeRoulette');
-    const items = document.querySelectorAll('.roulette-item');
-    
-    // Блокируем кнопку
-    spinButton.disabled = true;
-    spinButton.textContent = 'Крутится...';
-    
-    // Спиним рулетку
-    const spinDuration = 3000;
-    const startTime = Date.now();
-    const winnerIndex = Math.floor(Math.random() * currentCase.items.length);
-    const winnerItem = currentCase.items[winnerIndex];
-    
-    // Анимация вращения
-    let animationFrame;
-    function animate() {
-        const elapsed = Date.now() - startTime;
-        const progress = Math.min(elapsed / spinDuration, 1);
-        
-        // Подсвечиваем случайный предмет во время вращения
-        items.forEach(item => item.classList.remove('active'));
-        const randomIndex = Math.floor(Math.random() * items.length);
-        items[randomIndex].classList.add('active');
-        
-        if (progress < 1) {
-            animationFrame = requestAnimationFrame(animate);
-        } else {
-            // Завершаем на победном предмете
-            items.forEach(item => item.classList.remove('active'));
-            items[winnerIndex].classList.add('active');
-            
-            // Показываем результат
-            showRouletteResult(winnerItem);
-        }
-    }
-    
-    animationFrame = requestAnimationFrame(animate);
-    
-    // Обновляем баланс и инвентарь
-    const newBalance = userData.balance - currentCase.price;
-    userData.balance = newBalance;
-    userData.cases_opened = (userData.cases_opened || 0) + 1;
-    
-    // Добавляем предмет в инвентарь в базе
-    await addToInventory(winnerItem);
-    
-    // Обновляем локальный инвентарь
-    if (!userData.inventory) userData.inventory = [];
-    userData.inventory.push(winnerItem);
-    
-    // Сохраняем в базу
-    await updateBalance(newBalance);
-    
-    // Обновляем UI
-    updateUI();
-}
-
-function showRouletteResult(item) {
-    const result = document.getElementById('rouletteResult');
-    const spinButton = document.getElementById('spinButton');
-    const closeBtn = document.getElementById('closeRoulette');
-    
-    result.innerHTML = `
-        <div style="text-align: center;">
-            <div style="font-size: 18px; color: #ffd700; margin-bottom: 10px;">🎉 Поздравляем!</div>
-            <div style="font-weight: bold; margin-bottom: 5px;">${item.name}</div>
-            <div style="color: #ff6b35;">Цена: $${item.price}</div>
-        </div>
-    `;
-    
-    result.style.display = 'block';
-    spinButton.style.display = 'none';
-    closeBtn.style.display = 'block';
-}
-
-function closeRoulette() {
-    document.getElementById('rouletteContainer').style.display = 'none';
-    loadInventory(); // Обновляем инвентарь
-}
-
-// 🔧 ИНВЕНТАРЬ
-async function loadInventory() {
-    try {
-        const inventoryGrid = document.getElementById('inventoryGrid');
-        
-        if (!userData.inventory || userData.inventory.length === 0) {
-            inventoryGrid.innerHTML = '<div style="text-align: center; padding: 40px; opacity: 0.7;">Инвентарь пуст</div>';
-            return;
-        }
-        
-        inventoryGrid.innerHTML = userData.inventory.map(item => `
-            <div class="inventory-item">
-                <div class="item-image">
-                    <img src="${item.image}" alt="${item.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='🎮';">
-                </div>
-                <div class="item-name">${item.name}</div>
-                <div class="item-price">$${item.price}</div>
-            </div>
-        `).join('');
-        
-    } catch (error) {
-        console.error('Error loading inventory:', error);
-    }
-}
-
-// 🔧 РОЗЫГРЫШИ
-async function loadRaffles() {
-    try {
-        const response = await fetch(`${API_URL}/raffles`);
-        let raffles = [];
-        
-        if (response.ok) {
-            raffles = await response.json();
-        } else {
-            // Тестовые данные
-            raffles = [
-                { 
-                    id: 1, 
-                    name: 'AK-47 | Годовая подписка', 
-                    end_date: '2024-12-31T23:59:59', 
-                    participants: 1245,
-                    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY'
-                },
-                { 
-                    id: 2, 
-                    name: 'AWP | Элитный кейс', 
-                    end_date: '2024-12-25T23:59:59', 
-                    participants: 893,
-                    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q'
-                }
-            ];
-        }
-        
-        renderRaffles(raffles);
-        
-    } catch (error) {
-        console.error('Error loading raffles:', error);
-    }
-}
-
-function renderRaffles(raffles) {
-    const raffleSlider = document.getElementById('raffleSlider');
-    
-    raffleSlider.innerHTML = raffles.map(raffle => `
-        <div class="raffle-card">
-            <div class="raffle-image">
-                <img src="${raffle.image}" alt="${raffle.name}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 8px;" onerror="this.style.display='none';">
-                ${raffle.name}
-            </div>
-            <div class="raffle-info">
-                <span>⏰ ${new Date(raffle.end_date).toLocaleDateString()}</span>
-                <span>👥 ${raffle.participants}</span>
-            </div>
-            <button class="raffle-button" onclick="participateRaffle(${raffle.id})">Участвовать</button>
-        </div>
-    `).join('');
-}
-
-function initRaffleControls() {
-    const prevBtn = document.getElementById('prevRaffle');
-    const nextBtn = document.getElementById('nextRaffle');
-    const slider = document.getElementById('raffleSlider');
-    
-    prevBtn.addEventListener('click', () => {
-        currentRaffleIndex = Math.max(0, currentRaffleIndex - 1);
-        slider.scrollTo({ left: currentRaffleIndex * 300, behavior: 'smooth' });
-    });
-    
-    nextBtn.addEventListener('click', () => {
-        currentRaffleIndex = Math.min(10, currentRaffleIndex + 1); // Предполагаем максимум 10 розыгрышей
-        slider.scrollTo({ left: currentRaffleIndex * 300, behavior: 'smooth' });
-    });
-}
-
-async function participateRaffle(raffleId) {
-    showNotification('✅ Вы участвуете в розыгрыше!', 'success');
-}
-
-// 🔧 ПРОФИЛЬ С ФОТОГРАФИЕЙ
-function renderProfile() {
-    if (!currentUser) return;
-    
-    document.getElementById('profileName').textContent = 
-        `${currentUser.first_name} ${currentUser.last_name || ''}`;
-    document.getElementById('profileUsername').textContent = 
-        `@${currentUser.username || 'username'}`;
-    document.getElementById('profileBalance').textContent = userData.balance || 0;
-    document.getElementById('profileReferrals').textContent = userData.referrals || 0;
-    document.getElementById('profileCases').textContent = userData.cases_opened || 0;
-    document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
-    document.getElementById('profileLevel').textContent = userData.level || 1;
-    
-    // Аватар из Telegram
-    const avatar = document.getElementById('profileAvatar');
-    if (currentUser.photo_url) {
-        avatar.innerHTML = `<img src="${currentUser.photo_url}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
-    } else {
-        // Если фото нет, показываем первую букву имени
-        const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
-        avatar.innerHTML = `<span style="font-size: 24px;">${firstLetter}</span>`;
-    }
-}
-
-// 🔧 МОДАЛЬНОЕ ОКНО
-function initModal() {
-    const modal = document.getElementById('questModal');
-    const closeBtn = document.getElementById('modalClose');
-    const checkBtn = document.getElementById('modalCheck');
-    
-    closeBtn.addEventListener('click', () => {
-        modal.style.display = 'none';
-    });
-    
-    checkBtn.addEventListener('click', () => {
-        modal.style.display = 'none';
-        checkNameInBio();
-    });
-    
-    window.addEventListener('click', (event) => {
-        if (event.target === modal) {
-            modal.style.display = 'none';
-        }
-    });
-}
-
-function showNameQuestModal() {
-    const modal = document.getElementById('questModal');
-    const title = document.getElementById('modalTitle');
-    const text = document.getElementById('modalText');
-    
-    title.textContent = 'Имя бота в фамилии';
-    text.innerHTML = 'Награда: 50 монет<br><br>Для выполнения этого задания необходимо:';
-    
-    modal.style.display = 'flex';
-}
-
-// 🔧 УТИЛИТЫ
-function showNotification(message, type = 'success') {
-    const notification = document.createElement('div');
-    notification.className = `notification ${type}`;
-    notification.textContent = message;
-    notification.style.background = type === 'error' ? 'rgba(220, 53, 69, 0.95)' : 
-                                  type === 'info' ? 'rgba(23, 162, 184, 0.95)' : 
-                                  'rgba(255, 107, 53, 0.95)';
-    
-    document.body.appendChild(notification);
-    
-    setTimeout(() => {
-        notification.remove();
-    }, 3000);
-}
-
-function useTestData() {
-    currentUser = {
-        user_id: 6311564665,
-        first_name: "Тестовый",
-        last_name: "Пользователь",
-        username: "testuser",
-        balance: 150,
-        referral_count: 3,
-        photo_url: null
-    };
-    userData = {
-        balance: 150,
-        daily_bonus: {
-            count: 2,
-            last_claim: new Date(Date.now() - 2 * 60 * 1000).toISOString(),
-            current_reward: 30
-        },
-        quests: {
-            subscribe: { completed: 3, last_claim: new Date().toISOString().split('T')[0] },
-            name: { completed: 1, last_claim: null },
-            ref_desc: { completed: 0, last_claim: null }
-        },
-        referrals: 3,
-        cases_opened: 5,
-        inventory: [
-            { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" }
-        ],
-        level: 1
-    };
-    updateUI();
-    loadCases();
-    loadRaffles();
-    loadInventory();
-    renderProfile();
-}
-
-function showWarningMessage() {
-    const container = document.querySelector('.container');
-    container.innerHTML = `
-        <div style="text-align: center; padding: 50px 20px; color: white;">
-            <h3 style="color: #ff6b35; margin-bottom: 20px;">⚠️ Откройте через Telegram бота</h3>
-            <p style="margin-bottom: 10px;">Для работы с играми откройте сайт через бота:</p>
-            <p style="font-weight: bold; font-size: 18px; color: #ffd700;">@CS2DropZone_bot</p>
-        </div>
-    `;
-}
-
+// 🔧 HTML ДОБАВЬТЕ ТАЙМЕРЫ ДЛЯ КАЖДОГО ЗАДАНИЯ
+// В каждом quest-card добавьте:
+// <div class="quest-timer" id="subscribeTimer" style="display: none;">Доступно через: 60 сек</div>
+// и т.д. для каждого задания
