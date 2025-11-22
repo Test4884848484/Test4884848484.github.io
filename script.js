@@ -265,8 +265,64 @@ async function checkSubscription() {
     if (!await checkCooldown('subscribe')) return;
     
     try {
-        // Эмуляция проверки подписки (в реальности через Telegram API)
-        const isSubscribed = Math.random() > 0.3; // 70% шанс что подписан
+        // Сначала открываем канал
+        if (window.Telegram && window.Telegram.WebApp) {
+            // Открываем внутри Telegram
+            window.Telegram.WebApp.openTelegramLink('https://t.me/CS2DropZone');
+        } else {
+            // Fallback для браузера
+            window.open('https://t.me/CS2DropZone', '_blank');
+        }
+        
+        // Показываем модальное окно с инструкцией
+        showSubscribeModal();
+        
+    } catch (error) {
+        console.error('Error opening channel:', error);
+        showNotification('❌ Ошибка открытия канала', 'error');
+    }
+}
+
+// 🔧 ДОБАВЛЯЕМ ФУНКЦИЮ ДЛЯ МОДАЛЬНОГО ОКНА ПОДПИСКИ
+function showSubscribeModal() {
+    const modal = document.getElementById('questModal');
+    const title = document.getElementById('modalTitle');
+    const text = document.getElementById('modalText');
+    const checkBtn = document.getElementById('modalCheck');
+    const closeBtn = document.getElementById('modalClose');
+    
+    if (modal && title && text) {
+        title.textContent = 'Подписка на канал';
+        text.innerHTML = `
+            Награда: 100 монет<br><br>
+            Для выполнения задания:
+            <ol>
+                <li>Подпишитесь на канал <strong>@CS2DropZone</strong></li>
+                <li>Вернитесь в это окно</li>
+                <li>Нажмите "Проверить подписку"</li>
+            </ol>
+            <em>Канал уже открыт в Telegram!</em>
+        `;
+        
+        // Обновляем обработчики кнопок
+        checkBtn.onclick = function() {
+            verifySubscription();
+            modal.style.display = 'none';
+        };
+        
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+        
+        modal.style.display = 'flex';
+    }
+}
+
+// 🔧 ФУНКЦИЯ ПРОВЕРКИ ПОДПИСКИ
+async function verifySubscription() {
+    try {
+        // Эмуляция проверки подписки
+        const isSubscribed = Math.random() > 0.3; // 70% шанс
         
         if (isSubscribed) {
             // Начисляем награду
@@ -295,31 +351,87 @@ async function checkSubscription() {
                 updateUI();
             }
         } else {
-            // Открываем канал в Telegram
-            if (window.Telegram && window.Telegram.WebApp) {
-                window.Telegram.WebApp.openTelegramLink('https://t.me/CS2DropZone');
-            } else {
-                window.open('https://t.me/CS2DropZone', '_blank');
-            }
-            showNotification('📢 Подпишитесь на канал и попробуйте снова', 'info');
+            showNotification('❌ Вы еще не подписаны на канал', 'error');
         }
     } catch (error) {
-        console.error('Error checking subscription:', error);
+        console.error('Error verifying subscription:', error);
         showNotification('❌ Ошибка проверки подписки', 'error');
     }
 }
 
 // 🔧 ПРОВЕРКА ИМЕНИ БОТА В ФАМИЛИИ
+// В script.js заменяем функцию checkNameInBio
 async function checkNameInBio() {
     console.log('🎯 Нажата кнопка проверки имени бота');
     
     if (!await checkCooldown('name')) return;
     
     try {
-        // Эмуляция проверки (в реальности через Telegram API)
-        const hasBotInBio = currentUser.last_name && currentUser.last_name.includes('@CS2DropZone_bot');
+        // Вместо проверки фамилии делаем задание "Подписка на бота"
+        // или "Добавление бота в контакты"
+        showAddBotModal();
         
-        if (hasBotInBio) {
+    } catch (error) {
+        console.error('Error checking name in bio:', error);
+        showNotification('❌ Ошибка проверки', 'error');
+    }
+}
+
+function showAddBotModal() {
+    const modal = document.getElementById('questModal');
+    const title = document.getElementById('modalTitle');
+    const text = document.getElementById('modalText');
+    const checkBtn = document.getElementById('modalCheck');
+    const closeBtn = document.getElementById('modalClose');
+    
+    if (modal && title && text) {
+        title.textContent = 'Добавление бота';
+        text.innerHTML = `
+            Награда: 50 монет<br><br>
+            Для выполнения задания:
+            <ol>
+                <li>Нажмите на кнопку "Открыть бота" ниже</li>
+                <li>Нажмите "START" в боте</li>
+                <li>Вернитесь в это окно</li>
+                <li>Нажмите "Проверить"</li>
+            </ol>
+        `;
+        
+        // Добавляем кнопку открытия бота
+        const buttonsContainer = modal.querySelector('.modal-buttons');
+        if (buttonsContainer) {
+            const openBotBtn = document.createElement('button');
+            openBotBtn.className = 'modal-button primary';
+            openBotBtn.textContent = '📱 Открыть бота';
+            openBotBtn.onclick = function() {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.openTelegramLink('https://t.me/CS2DropZone_bot');
+                } else {
+                    window.open('https://t.me/CS2DropZone_bot', '_blank');
+                }
+            };
+            buttonsContainer.insertBefore(openBotBtn, checkBtn);
+        }
+        
+        checkBtn.onclick = function() {
+            verifyBotAdded();
+            modal.style.display = 'none';
+        };
+        
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+        
+        modal.style.display = 'flex';
+    }
+}
+
+async function verifyBotAdded() {
+    try {
+        // Эмуляция проверки - всегда успешно для демо
+        const isAdded = true;
+        
+        if (isAdded) {
             // Начисляем награду
             const newBalance = (userData.balance || 0) + 50;
             const response = await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
@@ -329,28 +441,22 @@ async function checkNameInBio() {
             });
             
             if (response.ok) {
-                // Обновляем кулдаун
                 await updateCooldown('name');
-                
-                // Обновляем локальные данные
                 userData.balance = newBalance;
                 if (!userData.quests) userData.quests = {};
                 if (!userData.quests.name) userData.quests.name = {};
                 userData.quests.name.completed = (userData.quests.name.completed || 0) + 1;
                 userData.quests.name.last_claim = new Date().toISOString();
                 
-                // Сохраняем данные
                 await saveUserData();
                 
-                showNotification('🎉 +50 монет! Бот найден в фамилии', 'success');
+                showNotification('🎉 +50 монет! Задание выполнено', 'success');
                 updateUI();
             }
-        } else {
-            showNameQuestModal();
         }
     } catch (error) {
-        console.error('Error checking name in bio:', error);
-        showNotification('❌ Ошибка проверки фамилии', 'error');
+        console.error('Error verifying bot:', error);
+        showNotification('❌ Ошибка проверки', 'error');
     }
 }
 
@@ -1044,3 +1150,4 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
