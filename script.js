@@ -258,6 +258,109 @@ async function claimDailyBonus() {
     }
 }
 
+// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ С ПРОВЕРКОЙ ПОДПИСКИ
+async function loadUserProfile() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const telegramUserId = urlParams.get('tg');
+    const isSubscribed = urlParams.get('subscribed') === 'true';
+
+    if (!telegramUserId) {
+        showWarningMessage();
+        return;
+    }
+
+    try {
+        console.log('📥 Загрузка данных пользователя...');
+        const response = await fetch(`${API_URL}/user/full/${telegramUserId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const fullData = await response.json();
+        currentUser = fullData.user;
+        userData = fullData.data;
+        
+        console.log('✅ Данные пользователя загружены:', currentUser);
+        
+        // 🔧 ЕСЛИ ПОЛЬЗОВАТЕЛЬ ПОДПИСАН - ОБНОВЛЯЕМ СТАТУС ЗАДАНИЯ
+        if (isSubscribed) {
+            await updateSubscriptionStatus();
+        }
+        
+        renderProfile();
+        updateUI();
+        loadCases();
+        loadRaffles();
+        loadInventory();
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки пользователя:', error);
+        useTestData();
+    }
+}
+
+// 🔧 ОБНОВЛЕНИЕ СТАТУСА ПОДПИСКИ
+async function updateSubscriptionStatus() {
+    if (!currentUser) return;
+    
+    try {
+        // Обновляем статус подписки в базе данных
+        if (!userData.quests) userData.quests = {};
+        if (!userData.quests.subscribe) userData.quests.subscribe = {};
+        
+        // Увеличиваем счетчик выполненных дней
+        userData.quests.subscribe.completed = (userData.quests.subscribe.completed || 0) + 1;
+        userData.quests.subscribe.last_claim = new Date().toISOString();
+        
+        // Сохраняем в базу
+        await saveUserData();
+        
+        console.log('✅ Статус подписки обновлен');
+        
+    } catch (error) {
+        console.error('❌ Ошибка обновления статуса подписки:', error);
+    }
+}
+
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА
+function updateUI() {
+    if (!userData.daily_bonus) {
+        console.log('❌ userData.daily_bonus не определен');
+        return;
+    }
+    
+    console.log('🔄 Обновление интерфейса...');
+    
+    // Баланс
+    document.getElementById('balance').textContent = userData.balance || 0;
+    
+    // Ежедневный бонус
+    const dailyBonus = userData.daily_bonus;
+    document.getElementById('dailyReward').textContent = dailyBonus.current_reward || 10;
+    document.getElementById('dailyCompleted').textContent = dailyBonus.count || 0;
+    updateProgressBar('dailyProgress', dailyBonus.count || 0, 7);
+    updateQuestTimer('daily', dailyBonus.last_claim);
+    
+    // Задания
+    const quests = userData.quests || {};
+    document.getElementById('subscribeCompleted').textContent = quests.subscribe?.completed || 0;
+    updateProgressBar('subscribeProgress', quests.subscribe?.completed || 0, 10);
+    updateQuestTimer('subscribe', quests.subscribe?.last_claim);
+    
+    document.getElementById('nameCompleted').textContent = quests.name?.completed || 0;
+    updateProgressBar('nameProgress', quests.name?.completed || 0, 10);
+    updateQuestTimer('name', quests.name?.last_claim);
+    
+    document.getElementById('refDescCompleted').textContent = quests.ref_desc?.completed || 0;
+    updateProgressBar('refDescProgress', quests.ref_desc?.completed || 0, 10);
+    updateQuestTimer('ref_desc', quests.ref_desc?.last_claim);
+    
+    // Рефералы
+    document.getElementById('referralCount').textContent = userData.referrals || 0;
+    updateProgressBar('referralProgress', userData.referrals || 0, 10);
+    updateQuestTimer('referral', userData.referral_last_claim);
+}
 
 // 🔧 ПРОВЕРКА ПОДПИСКИ - ОТКРЫВАЕМ КАНАЛ В TELEGRAM
 async function checkSubscription() {
@@ -1112,5 +1215,6 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
