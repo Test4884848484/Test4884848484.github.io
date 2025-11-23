@@ -258,16 +258,16 @@ async function claimDailyBonus() {
     }
 }
 
-// 🔧 ПРОВЕРКА ПОДПИСКИ
+
+// 🔧 ПРОВЕРКА ПОДПИСКИ - ОТКРЫВАЕМ КАНАЛ В TELEGRAM
 async function checkSubscription() {
     console.log('🎯 Нажата кнопка проверки подписки');
     
     if (!await checkCooldown('subscribe')) return;
     
     try {
-        // Сначала открываем канал
+        // Открываем канал внутри Telegram
         if (window.Telegram && window.Telegram.WebApp) {
-            // Открываем внутри Telegram
             window.Telegram.WebApp.openTelegramLink('https://t.me/CS2DropZone');
         } else {
             // Fallback для браузера
@@ -283,7 +283,7 @@ async function checkSubscription() {
     }
 }
 
-// 🔧 ДОБАВЛЯЕМ ФУНКЦИЮ ДЛЯ МОДАЛЬНОГО ОКНА ПОДПИСКИ
+// 🔧 МОДАЛЬНОЕ ОКНО ДЛЯ ПОДПИСКИ
 function showSubscribeModal() {
     const modal = document.getElementById('questModal');
     const title = document.getElementById('modalTitle');
@@ -298,16 +298,18 @@ function showSubscribeModal() {
             Для выполнения задания:
             <ol>
                 <li>Подпишитесь на канал <strong>@CS2DropZone</strong></li>
-                <li>Вернитесь в это окно</li>
-                <li>Нажмите "Проверить подписку"</li>
+                <li>Вернитесь в бота</li>
+                <li>Нажмите кнопку "🔍 Проверить подписку" в меню бота</li>
+                <li>Или используйте команду /check_subscription</li>
             </ol>
             <em>Канал уже открыт в Telegram!</em>
         `;
         
         // Обновляем обработчики кнопок
         checkBtn.onclick = function() {
-            verifySubscription();
+            // Просто закрываем окно, проверка будет через бота
             modal.style.display = 'none';
+            showNotification('📢 Перейдите в бота и нажмите "🔍 Проверить подписку"', 'info');
         };
         
         closeBtn.onclick = function() {
@@ -318,46 +320,6 @@ function showSubscribeModal() {
     }
 }
 
-// 🔧 ФУНКЦИЯ ПРОВЕРКИ ПОДПИСКИ
-async function verifySubscription() {
-    try {
-        // Эмуляция проверки подписки
-        const isSubscribed = Math.random() > 0.3; // 70% шанс
-        
-        if (isSubscribed) {
-            // Начисляем награду
-            const newBalance = (userData.balance || 0) + 100;
-            const response = await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ balance: newBalance })
-            });
-            
-            if (response.ok) {
-                // Обновляем кулдаун
-                await updateCooldown('subscribe');
-                
-                // Обновляем локальные данные
-                userData.balance = newBalance;
-                if (!userData.quests) userData.quests = {};
-                if (!userData.quests.subscribe) userData.quests.subscribe = {};
-                userData.quests.subscribe.completed = (userData.quests.subscribe.completed || 0) + 1;
-                userData.quests.subscribe.last_claim = new Date().toISOString();
-                
-                // Сохраняем данные
-                await saveUserData();
-                
-                showNotification('🎉 +100 монет за подписку!', 'success');
-                updateUI();
-            }
-        } else {
-            showNotification('❌ Вы еще не подписаны на канал', 'error');
-        }
-    } catch (error) {
-        console.error('Error verifying subscription:', error);
-        showNotification('❌ Ошибка проверки подписки', 'error');
-    }
-}
 
 // 🔧 ПРОВЕРКА ИМЕНИ БОТА В ФАМИЛИИ
 // В script.js заменяем функцию checkNameInBio
@@ -1150,4 +1112,5 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
