@@ -3,10 +3,461 @@ const API_URL = 'https://my-backend-production-9034.up.railway.app/api';
 
 let currentUser = null;
 let userData = {};
-let currentRaffleIndex = 0;
-let currentCase = null;
 
-// 🔧 ИНИЦИАЛИЗАЦИЯ
+// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+async function loadUserProfile() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const telegramUserId = urlParams.get('tg');
+
+    if (!telegramUserId) {
+        showWarningMessage();
+        return;
+    }
+
+    try {
+        console.log('📥 Загрузка данных пользователя...');
+        const response = await fetch(`${API_URL}/user/full/${telegramUserId}`);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const fullData = await response.json();
+        currentUser = fullData.user;
+        userData = fullData.data;
+        
+        console.log('✅ Данные пользователя загружены:', userData);
+        
+        renderProfile();
+        updateUI();
+        loadCases();
+        loadRaffles();
+        loadInventory();
+        
+    } catch (error) {
+        console.error('❌ Ошибка загрузки пользователя:', error);
+        useTestData();
+    }
+}
+
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА
+function updateUI() {
+    if (!userData) {
+        console.log('❌ userData не определен');
+        return;
+    }
+    
+    console.log('🔄 Обновление интерфейса...');
+    
+    // Баланс
+    document.getElementById('balance').textContent = userData.balance || 0;
+    
+    // Подписка на канал
+    updateQuestUI('subscribe', userData.is_subscribed, userData.subscribe_count, userData.subscribe_last_claim, 100);
+    
+    // Бот в био
+    updateQuestUI('name', userData.has_bot_in_bio, userData.bot_in_bio_count, userData.bot_in_bio_last_claim, 50);
+    
+    // Реф ссылка в био
+    updateQuestUI('ref_desc', userData.has_ref_in_bio, userData.ref_in_bio_count, userData.ref_in_bio_last_claim, 20);
+    
+    // Ежедневный бонус
+    const dailyBonus = userData.daily_bonus || {};
+    document.getElementById('dailyReward').textContent = dailyBonus.current_reward || 10;
+    document.getElementById('dailyCompleted').textContent = dailyBonus.count || 0;
+    updateProgressBar('dailyProgress', dailyBonus.count || 0, 7);
+    updateQuestTimer('daily', dailyBonus.last_claim);
+    
+    // Рефералы
+    document.getElementById('referralCount').textContent = userData.referrals || 0;
+    updateProgressBar('referralProgress', userData.referrals || 0, 10);
+    updateQuestTimer('referral', userData.referral_last_claim);
+}
+
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ЗАДАНИЙ
+function updateQuestUI(questType, isCompleted, count, lastClaim, reward) {
+    const completedElement = document.getElementById(`${questType}Completed`);
+    const progressElement = document.getElementById(`${questType}Progress`);
+    const buttonElement = document.getElementById(`${questType}Button`);
+    const timerElement = document.getElementById(`${questType}Timer`);
+    
+    if (completedElement) {
+        completedElement.textContent = count || 0;
+    }
+    
+    if (progressElement) {
+        updateProgressBar(`${questType}Progress`, count || 0, 10);
+    }
+    
+    if (buttonElement) {
+        const now = new Date();
+        const lastClaimTime = lastClaim ? new Date(lastClaim) : null;
+        const cooldown = 60 * 1000; // 1 минута
+        
+        if (isCompleted) {
+            if (!lastClaimTime || (now - lastClaimTime) >= cooldown) {
+                buttonElement.disabled = false;
+                buttonElement.textContent = `+${reward} монет`;
+                buttonElement.style.background = 'linear-gradient(45deg, #ff6b35, #ff8c35)';
+                if (timerElement) {
+                    timerElement.style.display = 'block';
+                    timerElement.textContent = 'Доступно сейчас!';
+                    timerElement.style.color = '#4CAF50';
+                }
+            } else {
+                buttonElement.disabled = true;
+                buttonElement.textContent = `+${reward} монет`;
+                buttonElement.style.background = '#666';
+                if (timerElement) {
+                    const remaining = cooldown - (now - lastClaimTime);
+                    const seconds = Math.ceil(remaining / 1000);
+                    timerElement.style.display = 'block';
+                    timerElement.textContent = `Доступно через: ${seconds} сек`;
+                    timerElement.style.color = '#ff6b35';
+                }
+            }
+        } else {
+            buttonElement.disabled = true;
+            buttonElement.textContent = 'Подписаться';
+            buttonElement.style.background = '#666';
+            if (timerElement) {
+                timerElement.style.display = 'none';
+            }
+        }
+    }
+}
+
+// 🔧 ЗАБРАТЬ НАГРАДУ ЗА ПОДПИСКУ
+async function claimSubscribe() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/claim-subscribe`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            userData.balance = result.newBalance;
+            userData.subscribe_count = (userData.subscribe_count || 0) + 1;
+            userData.subscribe_last_claim = new Date().toISOString();
+            
+            showNotification(`🎉 +${result.reward} монет за подписку!`, 'success');
+            updateUI();
+        } else if (result.error === 'Cooldown') {
+            showNotification(`⏰ Попробуйте снова через ${result.remaining} секунд`, 'info');
+        } else if (result.error === 'Not subscribed') {
+            showNotification('❌ Вы не подписаны на канал', 'error');
+            openTelegramChannel();
+        } else {
+            showNotification('❌ Ошибка при получении награды', 'error');
+        }
+    } catch (error) {
+        console.error('Error claiming subscribe reward:', error);
+        showNotification('❌ Ошибка соединения', 'error');
+    }
+}
+
+// 🔧 ЗАБРАТЬ НАГРАДУ ЗА БОТА В БИО
+async function claimBotInBio() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/claim-bot-in-bio`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            userData.balance = result.newBalance;
+            userData.bot_in_bio_count = (userData.bot_in_bio_count || 0) + 1;
+            userData.bot_in_bio_last_claim = new Date().toISOString();
+            
+            showNotification(`🎉 +${result.reward} монет за бота в фамилии!`, 'success');
+            updateUI();
+        } else if (result.error === 'Cooldown') {
+            showNotification(`⏰ Попробуйте снова через ${result.remaining} секунд`, 'info');
+        } else if (result.error === 'Bot not in bio') {
+            showBotInBioInstructions();
+        } else {
+            showNotification('❌ Ошибка при получении награды', 'error');
+        }
+    } catch (error) {
+        console.error('Error claiming bot in bio reward:', error);
+        showNotification('❌ Ошибка соединения', 'error');
+    }
+}
+
+// 🔧 ЗАБРАТЬ НАГРАДУ ЗА РЕФ ССЫЛКУ В БИО
+async function claimRefInBio() {
+    if (!currentUser) return;
+    
+    try {
+        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/claim-ref-in-bio`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const result = await response.json();
+        
+        if (result.success) {
+            userData.balance = result.newBalance;
+            userData.ref_in_bio_count = (userData.ref_in_bio_count || 0) + 1;
+            userData.ref_in_bio_last_claim = new Date().toISOString();
+            
+            showNotification(`🎉 +${result.reward} монет за реф ссылку!`, 'success');
+            updateUI();
+        } else if (result.error === 'Cooldown') {
+            showNotification(`⏰ Попробуйте снова через ${result.remaining} секунд`, 'info');
+        } else if (result.error === 'Ref link not in bio') {
+            showRefInBioInstructions();
+        } else {
+            showNotification('❌ Ошибка при получении награды', 'error');
+        }
+    } catch (error) {
+        console.error('Error claiming ref in bio reward:', error);
+        showNotification('❌ Ошибка соединения', 'error');
+    }
+}
+
+// 🔧 ОТКРЫТЬ КАНАЛ TELEGRAM
+function openTelegramChannel() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.openTelegramLink('https://t.me/CS2DropZone');
+    } else {
+        window.open('https://t.me/CS2DropZone', '_blank');
+    }
+    
+    showNotification('📢 Перейдите в канал и подпишитесь, затем отправьте /start в боте', 'info');
+}
+
+// 🔧 ИНСТРУКЦИЯ ДЛЯ БОТА В БИО
+function showBotInBioInstructions() {
+    const modal = document.getElementById('questModal');
+    const title = document.getElementById('modalTitle');
+    const text = document.getElementById('modalText');
+    const checkBtn = document.getElementById('modalCheck');
+    const closeBtn = document.getElementById('modalClose');
+    
+    if (modal && title && text) {
+        title.textContent = 'Бот в фамилии';
+        text.innerHTML = `
+            Награда: 50 монет<br><br>
+            Для выполнения задания:
+            <ol>
+                <li>Откройте настройки Telegram</li>
+                <li>Перейдите в раздел "Изменить профиль"</li>
+                <li>Добавьте "@CS2DropZone_bot" в конец своей фамилии</li>
+                <li>Сохраните изменения</li>
+                <li>Вернитесь в бота и отправьте команду /start</li>
+            </ol>
+        `;
+        
+        checkBtn.onclick = function() {
+            modal.style.display = 'none';
+            showNotification('📝 Добавьте бота в фамилию и отправьте /start', 'info');
+        };
+        
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+        
+        modal.style.display = 'flex';
+    }
+}
+
+// 🔧 ИНСТРУКЦИЯ ДЛЯ РЕФ ССЫЛКИ В БИО
+function showRefInBioInstructions() {
+    const modal = document.getElementById('questModal');
+    const title = document.getElementById('modalTitle');
+    const text = document.getElementById('modalText');
+    const checkBtn = document.getElementById('modalCheck');
+    const closeBtn = document.getElementById('modalClose');
+    
+    if (modal && title && text) {
+        title.textContent = 'Реф. ссылка в описании';
+        text.innerHTML = `
+            Награда: 20 монет<br><br>
+            Для выполнения задания:
+            <ol>
+                <li>Откройте настройки Telegram</li>
+                <li>Перейдите в раздел "Изменить профиль"</li>
+                <li>Добавьте реферальную ссылку в описание профиля</li>
+                <li>Сохраните изменения</li>
+                <li>Вернитесь в бота и отправьте команду /start</li>
+            </ol>
+        `;
+        
+        checkBtn.onclick = function() {
+            modal.style.display = 'none';
+            showNotification('📝 Добавьте реф ссылку в описание и отправьте /start', 'info');
+        };
+        
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+        
+        modal.style.display = 'flex';
+    }
+}
+
+// 🔧 ОБНОВЛЕНИЕ ПРОГРЕСС БАРА
+function updateProgressBar(elementId, current, max) {
+    const progress = Math.min((current / max) * 100, 100);
+    const element = document.getElementById(elementId);
+    if (element) {
+        element.style.width = `${progress}%`;
+    }
+}
+
+// 🔧 ОБНОВЛЕНИЕ ТАЙМЕРА
+function updateQuestTimer(questType, lastClaim) {
+    const now = new Date();
+    const lastClaimTime = lastClaim ? new Date(lastClaim) : null;
+    const cooldown = 60 * 1000;
+    
+    let button, timer;
+    
+    switch(questType) {
+        case 'daily':
+            button = document.getElementById('dailyButton');
+            timer = document.getElementById('dailyTimer');
+            break;
+        case 'subscribe':
+            button = document.getElementById('subscribeButton');
+            timer = document.getElementById('subscribeTimer');
+            break;
+        case 'name':
+            button = document.getElementById('nameButton');
+            timer = document.getElementById('nameTimer');
+            break;
+        case 'ref_desc':
+            button = document.getElementById('refDescButton');
+            timer = document.getElementById('refDescTimer');
+            break;
+        case 'referral':
+            button = document.getElementById('referralButton');
+            timer = document.getElementById('referralTimer');
+            break;
+    }
+    
+    if (!button) return;
+    
+    if (!lastClaimTime || (now - lastClaimTime) >= cooldown) {
+        button.disabled = false;
+        if (timer) {
+            timer.style.display = 'block';
+            timer.textContent = 'Доступно сейчас!';
+            timer.style.color = '#4CAF50';
+        }
+    } else {
+        const remaining = cooldown - (now - lastClaimTime);
+        const seconds = Math.ceil(remaining / 1000);
+        button.disabled = true;
+        if (timer) {
+            timer.style.display = 'block';
+            timer.textContent = `Доступно через: ${seconds} сек`;
+            timer.style.color = '#ff6b35';
+        }
+    }
+}
+
+// 🔧 ИНИЦИАЛИЗАЦИЯ КНОПОК
+function initQuests() {
+    console.log('🔘 Инициализация кнопок заданий...');
+    
+    // Подписка на канал
+    const subscribeButton = document.getElementById('subscribeButton');
+    if (subscribeButton) {
+        subscribeButton.addEventListener('click', claimSubscribe);
+    }
+    
+    // Бот в био
+    const nameButton = document.getElementById('nameButton');
+    if (nameButton) {
+        nameButton.addEventListener('click', claimBotInBio);
+    }
+    
+    // Реф ссылка в био
+    const refDescButton = document.getElementById('refDescButton');
+    if (refDescButton) {
+        refDescButton.addEventListener('click', claimRefInBio);
+    }
+    
+    // Ежедневный бонус
+    const dailyButton = document.getElementById('dailyButton');
+    if (dailyButton) {
+        dailyButton.addEventListener('click', claimDailyBonus);
+    }
+    
+    // Рефералы
+    const referralButton = document.getElementById('referralButton');
+    if (referralButton) {
+        referralButton.addEventListener('click', claimReferralRewards);
+    }
+}
+
+// 🔧 ПРОФИЛЬ С ФОТО
+function renderProfile() {
+    if (!currentUser) return;
+    
+    console.log('👤 Рендеринг профиля...');
+    
+    document.getElementById('profileName').textContent = 
+        `${currentUser.first_name} ${currentUser.last_name || ''}`.trim();
+    document.getElementById('profileUsername').textContent = 
+        `@${currentUser.username || 'username'}`;
+    document.getElementById('profileBalance').textContent = userData.balance || 0;
+    document.getElementById('profileReferrals').textContent = userData.referrals || 0;
+    document.getElementById('profileCases').textContent = userData.cases_opened || 0;
+    document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
+    document.getElementById('profileLevel').textContent = userData.level || 1;
+    
+    // Аватар из Telegram
+    const avatar = document.getElementById('profileAvatar');
+    if (avatar && currentUser.photo_url) {
+        // Используем прямое URL из Telegram
+        const photoUrl = currentUser.photo_url;
+        avatar.innerHTML = `
+            <img src="${photoUrl}" alt="Avatar" 
+                 style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;"
+                 onerror="this.style.display='none'; this.parentNode.innerHTML='👤';">
+        `;
+        console.log('📸 Аватар загружен:', photoUrl);
+    } else {
+        const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
+        const colors = ['#ff6b35', '#4CAF50', '#2196F3', '#9C27B0', '#FF9800'];
+        const color = colors[firstLetter.charCodeAt(0) % colors.length];
+        
+        avatar.innerHTML = `
+            <div style="width: 100%; height: 100%; border-radius: 50%; background: ${color}; 
+                       display: flex; align-items: center; justify-content: center; 
+                       color: white; font-size: 24px; font-weight: bold;">
+                ${firstLetter}
+            </div>
+        `;
+    }
+}
+
+// 🔧 ЗАПУСК ТАЙМЕРОВ
+function startTimers() {
+    console.log('⏰ Запуск таймеров...');
+    setInterval(() => {
+        if (userData) {
+            updateQuestTimer('daily', userData.daily_bonus?.last_claim);
+            updateQuestTimer('subscribe', userData.subscribe_last_claim);
+            updateQuestTimer('name', userData.bot_in_bio_last_claim);
+            updateQuestTimer('ref_desc', userData.ref_in_bio_last_claim);
+            updateQuestTimer('referral', userData.referral_last_claim);
+        }
+    }, 1000);
+}
+
+// 🔧 ИНИЦИАЛИЗАЦИЯ ПРИЛОЖЕНИЯ
 document.addEventListener('DOMContentLoaded', function() {
     console.log('🚀 Инициализация приложения...');
     loadUserProfile();
@@ -1215,6 +1666,3 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
-
-
-
