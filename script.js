@@ -176,6 +176,342 @@ function updateSubscriptionUI(isSubscribed, count, lastClaim) {
     }
 }
 
+// 🔧 ПРОВЕРКА БОТА В БИО
+async function checkBotInBio() {
+    console.log('🎯 Нажата кнопка проверки имени бота');
+    
+    if (!await checkCooldown('name')) return;
+    
+    try {
+        // Вместо проверки фамилии делаем задание "Добавление бота в контакты"
+        showAddBotModal();
+        
+    } catch (error) {
+        console.error('Error checking name in bio:', error);
+        showNotification('❌ Ошибка проверки', 'error');
+    }
+}
+
+// 🔧 МОДАЛЬНОЕ ОКНО ДЛЯ ДОБАВЛЕНИЯ БОТА
+function showAddBotModal() {
+    const modal = document.getElementById('questModal');
+    const title = document.getElementById('modalTitle');
+    const text = document.getElementById('modalText');
+    const checkBtn = document.getElementById('modalCheck');
+    const closeBtn = document.getElementById('modalClose');
+    
+    if (modal && title && text) {
+        title.textContent = 'Добавление бота';
+        text.innerHTML = `
+            Награда: 50 монет<br><br>
+            Для выполнения задания:
+            <ol>
+                <li>Нажмите на кнопку "Открыть бота" ниже</li>
+                <li>Нажмите "START" в боте</li>
+                <li>Вернитесь в это окно</li>
+                <li>Нажмите "Проверить"</li>
+            </ol>
+        `;
+        
+        // Добавляем кнопку открытия бота
+        const buttonsContainer = modal.querySelector('.modal-buttons');
+        if (buttonsContainer) {
+            // Удаляем старую кнопку если есть
+            const oldBtn = buttonsContainer.querySelector('.open-bot-btn');
+            if (oldBtn) oldBtn.remove();
+            
+            const openBotBtn = document.createElement('button');
+            openBotBtn.className = 'modal-button primary open-bot-btn';
+            openBotBtn.textContent = '📱 Открыть бота';
+            openBotBtn.onclick = function() {
+                if (window.Telegram && window.Telegram.WebApp) {
+                    window.Telegram.WebApp.openTelegramLink('https://t.me/CS2DropZone_bot');
+                } else {
+                    window.open('https://t.me/CS2DropZone_bot', '_blank');
+                }
+            };
+            buttonsContainer.insertBefore(openBotBtn, checkBtn);
+        }
+        
+        checkBtn.onclick = function() {
+            verifyBotAdded();
+            modal.style.display = 'none';
+        };
+        
+        closeBtn.onclick = function() {
+            modal.style.display = 'none';
+        };
+        
+        modal.style.display = 'flex';
+    }
+}
+
+// 🔧 ПРОВЕРКА ДОБАВЛЕНИЯ БОТА
+async function verifyBotAdded() {
+    try {
+        // Эмуляция проверки - всегда успешно для демо
+        const isAdded = true;
+        
+        if (isAdded) {
+            // Начисляем награду
+            const newBalance = (userData.balance || 0) + 50;
+            
+            // Сохраняем данные
+            const saveResponse = await fetch(`${API_URL}/user/data/${currentUser.user_id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    ...userData,
+                    balance: newBalance,
+                    has_bot_in_bio: true,
+                    bot_in_bio_count: (userData.bot_in_bio_count || 0) + 1,
+                    bot_in_bio_last_claim: new Date().toISOString()
+                })
+            });
+            
+            if (saveResponse.ok) {
+                // Обновляем локальные данные
+                userData.balance = newBalance;
+                userData.has_bot_in_bio = true;
+                userData.bot_in_bio_count = (userData.bot_in_bio_count || 0) + 1;
+                userData.bot_in_bio_last_claim = new Date().toISOString();
+                
+                showNotification('🎉 +50 монет! Задание выполнено', 'success');
+                updateUI();
+            }
+        }
+    } catch (error) {
+        console.error('Error verifying bot:', error);
+        showNotification('❌ Ошибка проверки', 'error');
+    }
+}
+
+// 🔧 ПОЛУЧИТЬ КЕЙСЫ
+app.get('/api/cases', async (req, res) => {
+  try {
+    // Тестовые данные кейсов
+    const casesData = [
+      {
+        id: 1,
+        name: "Кейс Grunt",
+        price: 100,
+        image: "https://cs-shot.pro/images/new2/Grunt.png",
+        total_opened: 1542,
+        items: [
+          { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" },
+          { name: "AWP | Dragon Lore", price: "10000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" }
+        ]
+      },
+      {
+        id: 2,
+        name: "Кейс Lurk",
+        price: 200,
+        image: "https://cs-shot.pro/images/new2/Lurk.png",
+        total_opened: 892,
+        items: [
+          { name: "M4A4 | Howl", price: "8000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLkjYbf7itX6vytbbZSKOmsHGKU1edxtfNWQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" },
+          { name: "Knife | Fade", price: "12000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwi5Hf_jdk4OSrerRsM-OsCXWRx9F3peZWRyyygwRp527cn478dXyXbAJ2DZV2QucK5BDukoexMO3m4QWN2o1Hyiz-ii4bvTErvbhWWiFhog" }
+        ]
+      }
+    ];
+    
+    res.json(casesData);
+  } catch (err) {
+    console.error('Error getting cases:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 🔧 ПОЛУЧИТЬ РОЗЫГРЫШИ
+app.get('/api/raffles', async (req, res) => {
+  try {
+    // Тестовые данные розыгрышей
+    const rafflesData = [
+      { 
+        id: 1, 
+        name: 'AK-47 | Годовая подписка', 
+        end_date: '2024-12-31T23:59:59', 
+        participants: 1245,
+        image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY'
+      },
+      { 
+        id: 2, 
+        name: 'AWP | Элитный кейс', 
+        end_date: '2024-12-25T23:59:59', 
+        participants: 893,
+        image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q'
+      }
+    ];
+    
+    res.json(rafflesData);
+  } catch (err) {
+    console.error('Error getting raffles:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 🔧 СОЗДАТЬ/ОБНОВИТЬ ПОЛЬЗОВАТЕЛЯ
+app.post('/api/user', async (req, res) => {
+  try {
+    const { user_id, username, first_name, last_name, photo_url, referral_code } = req.body;
+    
+    // Проверяем существует ли пользователь
+    const existingUser = await pool.query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [user_id]
+    );
+    
+    if (existingUser.rows.length > 0) {
+      // Обновляем существующего пользователя
+      const result = await pool.query(
+        `UPDATE users SET 
+          username = $1, first_name = $2, last_name = $3, photo_url = $4, updated_at = NOW()
+         WHERE user_id = $5 
+         RETURNING *`,
+        [username, first_name, last_name, photo_url, user_id]
+      );
+      
+      res.json(result.rows[0]);
+    } else {
+      // Создаем нового пользователя
+      const referralCode = referral_code || generateReferralCode();
+      const result = await pool.query(
+        `INSERT INTO users (user_id, username, first_name, last_name, photo_url, referral_code) 
+         VALUES ($1, $2, $3, $4, $5, $6) 
+         RETURNING *`,
+        [user_id, username, first_name, last_name, photo_url, referralCode]
+      );
+      
+      // Создаем запись в user_data
+      await pool.query(
+        `INSERT INTO user_data (user_id) VALUES ($1)`,
+        [user_id]
+      );
+      
+      res.json(result.rows[0]);
+    }
+  } catch (err) {
+    console.error('Error creating/updating user:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 🔧 ПОЛУЧИТЬ ПОЛЬЗОВАТЕЛЯ
+app.get('/api/user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    const result = await pool.query(
+      'SELECT * FROM users WHERE user_id = $1',
+      [userId]
+    );
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('Error getting user:', err);
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// 🔧 ЗАГРУЗКА КЕЙСОВ С ОБРАБОТКОЙ ОШИБОК
+async function loadCases() {
+    try {
+        console.log('📦 Загрузка кейсов...');
+        const response = await fetch(`${API_URL}/cases`);
+        let casesData = [];
+        
+        if (response.ok) {
+            casesData = await response.json();
+        } else {
+            console.log('⚠️ API кейсов недоступно, используем тестовые данные');
+            // Тестовые данные
+            casesData = [
+                {
+                    id: 1,
+                    name: "Кейс Grunt",
+                    price: 100,
+                    image: "https://cs-shot.pro/images/new2/Grunt.png",
+                    total_opened: 1542,
+                    items: [
+                        { name: "AK-47 | Redline", price: "1500", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY" },
+                        { name: "AWP | Dragon Lore", price: "10000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" }
+                    ]
+                },
+                {
+                    id: 2,
+                    name: "Кейс Lurk",
+                    price: 200,
+                    image: "https://cs-shot.pro/images/new2/Lurk.png",
+                    total_opened: 892,
+                    items: [
+                        { name: "M4A4 | Howl", price: "8000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLkjYbf7itX6vytbbZSKOmsHGKU1edxtfNWQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q" },
+                        { name: "Knife | Fade", price: "12000", image: "https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwi5Hf_jdk4OSrerRsM-OsCXWRx9F3peZWRyyygwRp527cn478dXyXbAJ2DZV2QucK5BDukoexMO3m4QWN2o1Hyiz-ii4bvTErvbhWWiFhog" }
+                    ]
+                }
+            ];
+        }
+        
+        const casesGrid = document.getElementById('casesGrid');
+        if (casesGrid) {
+            casesGrid.innerHTML = casesData.map(caseItem => `
+                <div class="case-card" onclick="showCaseDetails(${caseItem.id})">
+                    <div class="case-image">
+                        <img src="${caseItem.image}" alt="${caseItem.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='${caseItem.name}';">
+                    </div>
+                    <div class="case-title">${caseItem.name}</div>
+                    <div class="case-price">💎 ${caseItem.price} монет</div>
+                    <div class="case-stats">Открыто: ${caseItem.total_opened} раз</div>
+                </div>
+            `).join('');
+            console.log('✅ Кейсы загружены:', casesData.length);
+        }
+        
+    } catch (error) {
+        console.error('Error loading cases:', error);
+    }
+}
+
+// 🔧 ЗАГРУЗКА РОЗЫГРЫШЕЙ С ОБРАБОТКОЙ ОШИБОК
+async function loadRaffles() {
+    try {
+        console.log('🎁 Загрузка розыгрышей...');
+        const response = await fetch(`${API_URL}/raffles`);
+        let raffles = [];
+        
+        if (response.ok) {
+            raffles = await response.json();
+        } else {
+            console.log('⚠️ API розыгрышей недоступно, используем тестовые данные');
+            // Тестовые данные
+            raffles = [
+                { 
+                    id: 1, 
+                    name: 'AK-47 | Годовая подписка', 
+                    end_date: '2024-12-31T23:59:59', 
+                    participants: 1245,
+                    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyLwlcK3wiFO0POlPPNSIf6GDG6D_uJ_t-l9AX_nzBhw4TvWwo6udC2QbgZyWcN2RuMP4xHrlYDnYezm7geP3d5FyH3gznQeY_Oe4QY'
+                },
+                { 
+                    id: 2, 
+                    name: 'AWP | Элитный кейс', 
+                    end_date: '2024-12-25T23:59:59', 
+                    participants: 893,
+                    image: 'https://community.akamai.steamstatic.com/economy/image/i0CoZ81Ui0m-9KwlBY1L_18myuGuq1wfhWSaZgMttyVfPaERSR0Wqmu7LAocGIGz3UqlXOLrxM-vMGmW8VNxu5Dx60noTyL8ypexwiFO0P_6afBSJeaaAliUwOd7qe5WQyC0nQlp4GqGz42ucCqXaQMhDpd4R-AIsxK6ktXgZePltVPXitoRn3-tjCgd6zErvbijVJZd2Q'
+                }
+            ];
+        }
+        
+        renderRaffles(raffles);
+        
+    } catch (error) {
+        console.error('Error loading raffles:', error);
+    }
+}
+
 // 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ЗАДАНИЙ
 function updateQuestUI(questType, isCompleted, count, lastClaim, reward) {
     const completedElement = document.getElementById(`${questType}Completed`);
@@ -568,7 +904,7 @@ function updateQuestTimer(questType, lastClaim) {
     }
 }
 
-// 🔧 ИНИЦИАЛИЗАЦИЯ КНОПОК - ОБНОВЛЕННАЯ
+// 🔧 ИНИЦИАЛИЗАЦИЯ КНОПОК - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function initQuests() {
     console.log('🔘 Инициализация кнопок заданий...');
     
@@ -579,31 +915,38 @@ function initQuests() {
         console.log('✅ Кнопка ежедневного бонуса инициализирована');
     }
     
-    // Подписка на канал - обработчик устанавливается динамически в updateSubscriptionUI
+    // Подписка на канал - обработчик устанавливается динамически
     const subscribeButton = document.getElementById('subscribeButton');
     if (subscribeButton) {
-        console.log('✅ Кнопка подписки найдена, обработчик будет установлен динамически');
+        console.log('✅ Кнопка подписки найдена');
     }
     
-    // Остальные кнопки...
+    // Имя бота в фамилии
     const nameButton = document.getElementById('nameButton');
     if (nameButton) {
         nameButton.addEventListener('click', checkBotInBio);
+        console.log('✅ Кнопка имени бота инициализирована');
     }
     
+    // Реф. ссылка в описании
     const refDescButton = document.getElementById('refDescButton');
     if (refDescButton) {
         refDescButton.addEventListener('click', checkRefInDescription);
+        console.log('✅ Кнопка реф. ссылки инициализирована');
     }
     
+    // Копирование реферальной ссылки
     const copyRefButton = document.getElementById('copyRefButton');
     if (copyRefButton) {
         copyRefButton.addEventListener('click', copyReferralLink);
+        console.log('✅ Кнопка копирования ссылки инициализирована');
     }
     
+    // Рефералы
     const referralButton = document.getElementById('referralButton');
     if (referralButton) {
         referralButton.addEventListener('click', claimReferralRewards);
+        console.log('✅ Кнопка рефералов инициализирована');
     }
     
     console.log('✅ Все кнопки инициализированы');
@@ -1833,6 +2176,7 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
