@@ -45,14 +45,19 @@ async function loadUserProfile() {
     }
 }
 
-// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА - ПОЛНОСТЬЮ ПЕРЕРАБОТАННАЯ ВЕРСИЯ
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА - С ОТЛАДОЧНОЙ ИНФОРМАЦИЕЙ
 function updateUI() {
     if (!userData) {
         console.log('❌ userData не определен');
         return;
     }
     
-    console.log('🔄 Обновление интерфейса...', userData);
+    console.log('🔄 Обновление интерфейса...', {
+        balance: userData.balance,
+        is_subscribed: userData.is_subscribed,
+        subscribe_count: userData.subscribe_count,
+        subscribe_last_claim: userData.subscribe_last_claim
+    });
     
     // Баланс
     document.getElementById('balance').textContent = userData.balance || 0;
@@ -62,7 +67,11 @@ function updateUI() {
     const subscribeCount = userData.subscribe_count || 0;
     const subscribeLastClaim = userData.subscribe_last_claim;
     
-    console.log('📢 Статус подписки:', { isSubscribed, subscribeCount, subscribeLastClaim });
+    console.log('📢 Статус подписки для UI:', { 
+        isSubscribed, 
+        subscribeCount, 
+        subscribeLastClaim 
+    });
     
     // Обновляем интерфейс подписки
     updateSubscriptionUI(isSubscribed, subscribeCount, subscribeLastClaim);
@@ -86,7 +95,7 @@ function updateUI() {
     updateQuestTimer('referral', userData.referral_last_claim);
 }
 
-// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ПОДПИСКИ - НОВАЯ ФУНКЦИЯ
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ПОДПИСКИ - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function updateSubscriptionUI(isSubscribed, count, lastClaim) {
     const completedElement = document.getElementById('subscribeCompleted');
     const progressElement = document.getElementById('subscribeProgress');
@@ -106,7 +115,12 @@ function updateSubscriptionUI(isSubscribed, count, lastClaim) {
         const lastClaimTime = lastClaim ? new Date(lastClaim) : null;
         const cooldown = 60 * 1000; // 1 минута
         
-        console.log('🔍 Проверка подписки для кнопки:', { isSubscribed, lastClaimTime, cooldown });
+        console.log('🔍 Проверка подписки для кнопки:', { 
+            isSubscribed, 
+            count,
+            lastClaimTime, 
+            hasCooldown: !!(lastClaimTime && (now - lastClaimTime) < cooldown)
+        });
         
         if (isSubscribed) {
             // ПОЛЬЗОВАТЕЛЬ ПОДПИСАН
@@ -115,7 +129,10 @@ function updateSubscriptionUI(isSubscribed, count, lastClaim) {
                 buttonElement.disabled = false;
                 buttonElement.textContent = `+100 монет`;
                 buttonElement.style.background = 'linear-gradient(45deg, #ff6b35, #ff8c35)';
-                buttonElement.onclick = claimSubscribe;
+                buttonElement.onclick = function() {
+                    console.log('🎯 Нажата кнопка +100 монет за подписку');
+                    claimSubscribe();
+                };
                 
                 if (timerElement) {
                     timerElement.style.display = 'block';
@@ -144,7 +161,10 @@ function updateSubscriptionUI(isSubscribed, count, lastClaim) {
             buttonElement.disabled = false; // Разрешаем нажатие
             buttonElement.textContent = 'Подписаться';
             buttonElement.style.background = 'linear-gradient(45deg, #2196F3, #21CBF3)';
-            buttonElement.onclick = openTelegramChannel; // Открываем канал
+            buttonElement.onclick = function() {
+                console.log('🎯 Нажата кнопка Подписаться');
+                openTelegramChannel();
+            };
             
             if (timerElement) {
                 timerElement.style.display = 'block';
@@ -298,36 +318,47 @@ function showAvatarPlaceholder(avatarElement, firstName) {
 
 
 
-// 🔧 ЗАБРАТЬ НАГРАДУ ЗА ПОДПИСКУ
+// 🔧 ЗАБРАТЬ НАГРАДУ ЗА ПОДПИСКУ - ИСПРАВЛЕННАЯ ВЕРСИЯ
 async function claimSubscribe() {
-    if (!currentUser) return;
+    console.log('🎯 Нажата кнопка получения награды за подписку');
+    
+    if (!currentUser) {
+        showNotification('❌ Пользователь не найден', 'error');
+        return;
+    }
     
     try {
+        console.log('📡 Отправляем запрос на сервер...');
         const response = await fetch(`${API_URL}/user/${currentUser.user_id}/claim-subscribe`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' }
         });
         
         const result = await response.json();
+        console.log('📡 Ответ сервера:', result);
         
         if (result.success) {
+            // Обновляем локальные данные
             userData.balance = result.newBalance;
             userData.subscribe_count = (userData.subscribe_count || 0) + 1;
             userData.subscribe_last_claim = new Date().toISOString();
             
             showNotification(`🎉 +${result.reward} монет за подписку!`, 'success');
             updateUI();
+            
+            // Сохраняем обновленные данные
+            await saveUserData();
         } else if (result.error === 'Cooldown') {
             showNotification(`⏰ Попробуйте снова через ${result.remaining} секунд`, 'info');
         } else if (result.error === 'Not subscribed') {
             showNotification('❌ Вы не подписаны на канал', 'error');
             openTelegramChannel();
         } else {
-            showNotification('❌ Ошибка при получении награды', 'error');
+            showNotification('❌ Ошибка при получении награды: ' + result.error, 'error');
         }
     } catch (error) {
         console.error('Error claiming subscribe reward:', error);
-        showNotification('❌ Ошибка соединения', 'error');
+        showNotification('❌ Ошибка соединения с сервером', 'error');
     }
 }
 
@@ -897,44 +928,9 @@ async function updateSubscriptionStatus() {
     }
 }
 
-// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА
-function updateUI() {
-    if (!userData.daily_bonus) {
-        console.log('❌ userData.daily_bonus не определен');
-        return;
-    }
-    
-    console.log('🔄 Обновление интерфейса...');
-    
-    // Баланс
-    document.getElementById('balance').textContent = userData.balance || 0;
-    
-    // Ежедневный бонус
-    const dailyBonus = userData.daily_bonus;
-    document.getElementById('dailyReward').textContent = dailyBonus.current_reward || 10;
-    document.getElementById('dailyCompleted').textContent = dailyBonus.count || 0;
-    updateProgressBar('dailyProgress', dailyBonus.count || 0, 7);
-    updateQuestTimer('daily', dailyBonus.last_claim);
-    
-    // Задания
-    const quests = userData.quests || {};
-    document.getElementById('subscribeCompleted').textContent = quests.subscribe?.completed || 0;
-    updateProgressBar('subscribeProgress', quests.subscribe?.completed || 0, 10);
-    updateQuestTimer('subscribe', quests.subscribe?.last_claim);
-    
-    document.getElementById('nameCompleted').textContent = quests.name?.completed || 0;
-    updateProgressBar('nameProgress', quests.name?.completed || 0, 10);
-    updateQuestTimer('name', quests.name?.last_claim);
-    
-    document.getElementById('refDescCompleted').textContent = quests.ref_desc?.completed || 0;
-    updateProgressBar('refDescProgress', quests.ref_desc?.completed || 0, 10);
-    updateQuestTimer('ref_desc', quests.ref_desc?.last_claim);
-    
-    // Рефералы
-    document.getElementById('referralCount').textContent = userData.referrals || 0;
-    updateProgressBar('referralProgress', userData.referrals || 0, 10);
-    updateQuestTimer('referral', userData.referral_last_claim);
-}
+
+
+
 
 // 🔧 ПРОВЕРКА ПОДПИСКИ - ОТКРЫВАЕМ КАНАЛ В TELEGRAM
 async function checkSubscription() {
@@ -1847,6 +1843,7 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
