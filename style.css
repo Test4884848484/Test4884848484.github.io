@@ -1,3 +1,13 @@
+/* Стиль для кнопки подписки */
+.quest-button.subscribe {
+    background: linear-gradient(45deg, #2196F3, #21CBF3) !important;
+}
+
+.quest-button.subscribe:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(33, 150, 243, 0.4);
+}
+
 /* Основные стили */
 * {
     margin: 0;
@@ -879,3 +889,4 @@ body {
 ::-webkit-scrollbar-thumb:hover {
     background: rgba(255, 107, 53, 0.7);
 }
+
