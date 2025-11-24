@@ -499,13 +499,14 @@ async function loadUserProfile() {
         currentUser = fullData.user;
         userData = fullData.data;
         
-        console.log('✅ Данные пользователя загружены:', currentUser);
+        console.log('✅ Данные пользователя загружены:', userData);
         
+        // 🔧 ПРАВИЛЬНО ОБНОВЛЯЕМ ИНТЕРФЕЙС С УЧЕТОМ ПОДПИСКИ
         renderProfile();
         updateUI();
         loadCases();
         loadRaffles();
-        loadInventory();
+        loadInventory(); // Теперь загружаем из базы данных
         
     } catch (error) {
         console.error('❌ Ошибка загрузки пользователя:', error);
@@ -1195,27 +1196,41 @@ async function loadCases() {
 async function loadInventory() {
     try {
         console.log('🎒 Загрузка инвентаря...');
-        const inventoryGrid = document.getElementById('inventoryGrid');
         
+        // Загружаем инвентарь из базы данных
+        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/inventory`);
+        let inventoryItems = [];
+        
+        if (response && response.ok) {
+            inventoryItems = await response.json();
+            // Обновляем локальные данные
+            userData.inventory = inventoryItems;
+        } else {
+            // Используем локальные данные если API недоступно
+            inventoryItems = userData.inventory || [];
+        }
+        
+        const inventoryGrid = document.getElementById('inventoryGrid');
         if (!inventoryGrid) return;
         
-        if (!userData.inventory || userData.inventory.length === 0) {
+        if (inventoryItems.length === 0) {
             inventoryGrid.innerHTML = '<div style="text-align: center; padding: 40px; opacity: 0.7;">Инвентарь пуст</div>';
             console.log('✅ Инвентарь пуст');
             return;
         }
         
-        inventoryGrid.innerHTML = userData.inventory.map(item => `
+        inventoryGrid.innerHTML = inventoryItems.map(item => `
             <div class="inventory-item">
                 <div class="item-image">
-                    <img src="${item.image}" alt="${item.name}" onerror="this.style.display='none'; this.parentNode.innerHTML='🎮';">
+                    <img src="${item.item_image || item.image}" alt="${item.item_name || item.name}" 
+                         onerror="this.style.display='none'; this.parentNode.innerHTML='🎮';">
                 </div>
-                <div class="item-name">${item.name}</div>
-                <div class="item-price">$${item.price}</div>
+                <div class="item-name">${item.item_name || item.name}</div>
+                <div class="item-price">$${item.item_price || item.price}</div>
             </div>
         `).join('');
         
-        console.log('✅ Инвентарь загружен:', userData.inventory.length, 'предметов');
+        console.log('✅ Инвентарь загружен:', inventoryItems.length, 'предметов');
         
     } catch (error) {
         console.error('Error loading inventory:', error);
@@ -1666,4 +1681,5 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
