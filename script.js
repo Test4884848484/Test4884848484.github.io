@@ -518,36 +518,52 @@ function updateQuestTimer(questType, lastClaim) {
 function initQuests() {
     console.log('🔘 Инициализация кнопок заданий...');
     
-    // Подписка на канал
-    const subscribeButton = document.getElementById('subscribeButton');
-    if (subscribeButton) {
-        subscribeButton.addEventListener('click', claimSubscribe);
-    }
-    
-    // Бот в био
-    const nameButton = document.getElementById('nameButton');
-    if (nameButton) {
-        nameButton.addEventListener('click', claimBotInBio);
-    }
-    
-    // Реф ссылка в био
-    const refDescButton = document.getElementById('refDescButton');
-    if (refDescButton) {
-        refDescButton.addEventListener('click', claimRefInBio);
-    }
-    
     // Ежедневный бонус
     const dailyButton = document.getElementById('dailyButton');
     if (dailyButton) {
         dailyButton.addEventListener('click', claimDailyBonus);
+        console.log('✅ Кнопка ежедневного бонуса инициализирована');
+    }
+    
+    // Подписка на канал - ОСОБАЯ ЛОГИКА (обработчик устанавливается динамически)
+    const subscribeButton = document.getElementById('subscribeButton');
+    if (subscribeButton) {
+        console.log('✅ Кнопка подписки инициализирована (динамический обработчик)');
+        // Обработчик будет устанавливаться в updateSubscriptionUI в зависимости от статуса подписки
+    }
+    
+    // Имя бота в фамилии
+    const nameButton = document.getElementById('nameButton');
+    if (nameButton) {
+        nameButton.addEventListener('click', checkBotInBio);
+        console.log('✅ Кнопка имени бота инициализирована');
+    }
+    
+    // Реф. ссылка в описании
+    const refDescButton = document.getElementById('refDescButton');
+    if (refDescButton) {
+        refDescButton.addEventListener('click', checkRefInDescription);
+        console.log('✅ Кнопка реф. ссылки инициализирована');
+    }
+    
+    // Копирование реферальной ссылки
+    const copyRefButton = document.getElementById('copyRefButton');
+    if (copyRefButton) {
+        copyRefButton.addEventListener('click', copyReferralLink);
+        console.log('✅ Кнопка копирования ссылки инициализирована');
     }
     
     // Рефералы
     const referralButton = document.getElementById('referralButton');
     if (referralButton) {
         referralButton.addEventListener('click', claimReferralRewards);
+        console.log('✅ Кнопка рефералов инициализирована');
     }
+    
+    // Модальное окно
+    initModal();
 }
+
 
 
 
@@ -726,51 +742,7 @@ function updateQuestTimer(questType, lastClaim) {
     }
 }
 
-// 🔧 ИНИЦИАЛИЗАЦИЯ КНОПОК
-function initQuests() {
-    console.log('🔘 Инициализация кнопок заданий...');
-    
-    // Ежедневный бонус
-    const dailyButton = document.getElementById('dailyButton');
-    if (dailyButton) {
-        dailyButton.addEventListener('click', claimDailyBonus);
-        console.log('✅ Кнопка ежедневного бонуса инициализирована');
-    }
-    
-    // Подписка на канал
-    const subscribeButton = document.getElementById('subscribeButton');
-    if (subscribeButton) {
-        subscribeButton.addEventListener('click', checkSubscription);
-        console.log('✅ Кнопка подписки инициализирована');
-    }
-    
-    // Имя бота в фамилии
-    const nameButton = document.getElementById('nameButton');
-    if (nameButton) {
-        nameButton.addEventListener('click', checkNameInBio);
-        console.log('✅ Кнопка имени бота инициализирована');
-    }
-    
-    // Реф. ссылка в описании
-    const refDescButton = document.getElementById('refDescButton');
-    if (refDescButton) {
-        refDescButton.addEventListener('click', checkRefInDescription);
-        console.log('✅ Кнопка реф. ссылки инициализирована');
-    }
-    
-    const copyRefButton = document.getElementById('copyRefButton');
-    if (copyRefButton) {
-        copyRefButton.addEventListener('click', copyReferralLink);
-        console.log('✅ Кнопка копирования ссылки инициализирована');
-    }
-    
-    // Рефералы
-    const referralButton = document.getElementById('referralButton');
-    if (referralButton) {
-        referralButton.addEventListener('click', claimReferralRewards);
-        console.log('✅ Кнопка рефералов инициализирована');
-    }
-}
+
 
 // 🔧 ЕЖЕДНЕВНЫЙ БОНУС
 async function claimDailyBonus() {
@@ -1781,6 +1753,7 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
