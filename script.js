@@ -118,11 +118,59 @@ function updateQuestUI(questType, isCompleted, count, lastClaim, reward) {
             }
         } else {
             buttonElement.disabled = true;
-            buttonElement.textContent = 'Подписаться';
+            buttonElement.textContent = questType === 'subscribe' ? 'Подписаться' : 'Выполнить';
             buttonElement.style.background = '#666';
             if (timerElement) {
                 timerElement.style.display = 'none';
             }
+        }
+    }
+}
+
+// 🔧 ПРОФИЛЬ С ФОТО
+function renderProfile() {
+    if (!currentUser) return;
+    
+    console.log('👤 Рендеринг профиля...');
+    
+    document.getElementById('profileName').textContent = 
+        `${currentUser.first_name} ${currentUser.last_name || ''}`.trim();
+    document.getElementById('profileUsername').textContent = 
+        `@${currentUser.username || 'username'}`;
+    document.getElementById('profileBalance').textContent = userData.balance || 0;
+    document.getElementById('profileReferrals').textContent = userData.referrals || 0;
+    document.getElementById('profileCases').textContent = userData.cases_opened || 0;
+    document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
+    document.getElementById('profileLevel').textContent = userData.level || 1;
+    
+    // Аватар из Telegram - ИСПРАВЛЕННАЯ ВЕРСИЯ
+    const avatar = document.getElementById('profileAvatar');
+    if (avatar) {
+        if (currentUser.photo_url) {
+            // Проверяем, является ли URL полным
+            let photoUrl = currentUser.photo_url;
+            if (!photoUrl.startsWith('http')) {
+                photoUrl = `https://api.telegram.org/file/bot8308720989:AAHFS_9JXHB7T6UufDuQB9W-xjWTPU-x0lY/${photoUrl}`;
+            }
+            
+            avatar.innerHTML = `
+                <img src="${photoUrl}" alt="Avatar" 
+                     style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;"
+                     onerror="this.style.display='none'; this.parentNode.innerHTML='👤';">
+            `;
+            console.log('📸 Аватар загружен:', photoUrl);
+        } else {
+            const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
+            const colors = ['#ff6b35', '#4CAF50', '#2196F3', '#9C27B0', '#FF9800'];
+            const color = colors[firstLetter.charCodeAt(0) % colors.length];
+            
+            avatar.innerHTML = `
+                <div style="width: 100%; height: 100%; border-radius: 50%; background: ${color}; 
+                           display: flex; align-items: center; justify-content: center; 
+                           color: white; font-size: 24px; font-weight: bold;">
+                    ${firstLetter}
+                </div>
+            `;
         }
     }
 }
@@ -401,47 +449,7 @@ function initQuests() {
     }
 }
 
-// 🔧 ПРОФИЛЬ С ФОТО
-function renderProfile() {
-    if (!currentUser) return;
-    
-    console.log('👤 Рендеринг профиля...');
-    
-    document.getElementById('profileName').textContent = 
-        `${currentUser.first_name} ${currentUser.last_name || ''}`.trim();
-    document.getElementById('profileUsername').textContent = 
-        `@${currentUser.username || 'username'}`;
-    document.getElementById('profileBalance').textContent = userData.balance || 0;
-    document.getElementById('profileReferrals').textContent = userData.referrals || 0;
-    document.getElementById('profileCases').textContent = userData.cases_opened || 0;
-    document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
-    document.getElementById('profileLevel').textContent = userData.level || 1;
-    
-    // Аватар из Telegram
-    const avatar = document.getElementById('profileAvatar');
-    if (avatar && currentUser.photo_url) {
-        // Используем прямое URL из Telegram
-        const photoUrl = currentUser.photo_url;
-        avatar.innerHTML = `
-            <img src="${photoUrl}" alt="Avatar" 
-                 style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;"
-                 onerror="this.style.display='none'; this.parentNode.innerHTML='👤';">
-        `;
-        console.log('📸 Аватар загружен:', photoUrl);
-    } else {
-        const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
-        const colors = ['#ff6b35', '#4CAF50', '#2196F3', '#9C27B0', '#FF9800'];
-        const color = colors[firstLetter.charCodeAt(0) % colors.length];
-        
-        avatar.innerHTML = `
-            <div style="width: 100%; height: 100%; border-radius: 50%; background: ${color}; 
-                       display: flex; align-items: center; justify-content: center; 
-                       color: white; font-size: 24px; font-weight: bold;">
-                ${firstLetter}
-            </div>
-        `;
-    }
-}
+
 
 // 🔧 ЗАПУСК ТАЙМЕРОВ
 function startTimers() {
@@ -1268,32 +1276,7 @@ function copyReferralLink() {
     });
 }
 
-// 🔧 ПРОФИЛЬ
-function renderProfile() {
-    if (!currentUser) return;
-    
-    console.log('👤 Рендеринг профиля...');
-    
-    document.getElementById('profileName').textContent = 
-        `${currentUser.first_name} ${currentUser.last_name || ''}`;
-    document.getElementById('profileUsername').textContent = 
-        `@${currentUser.username || 'username'}`;
-    document.getElementById('profileBalance').textContent = userData.balance || 0;
-    document.getElementById('profileReferrals').textContent = userData.referrals || 0;
-    document.getElementById('profileCases').textContent = userData.cases_opened || 0;
-    document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
-    document.getElementById('profileLevel').textContent = userData.level || 1;
-    
-    // Аватар из Telegram
-    const avatar = document.getElementById('profileAvatar');
-    if (currentUser.photo_url) {
-        const photoUrl = `${currentUser.photo_url}?t=${Date.now()}`;
-        avatar.innerHTML = `<img src="${photoUrl}" alt="Avatar" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;" onerror="this.style.display='none'; this.parentNode.innerHTML='👤';">`;
-    } else {
-        const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
-        avatar.innerHTML = `<span style="font-size: 24px;">${firstLetter}</span>`;
-    }
-}
+
 
 // 🔧 МОДАЛЬНОЕ ОКНО
 function initModal() {
@@ -1485,7 +1468,7 @@ async function updateBalance(newBalance) {
     }
 }
 
-function showRouletteResult(item) {
+async function showRouletteResult(item) {
     const result = document.getElementById('rouletteResult');
     const spinButton = document.getElementById('spinButton');
     const closeBtn = document.getElementById('closeRoulette');
@@ -1503,14 +1486,31 @@ function showRouletteResult(item) {
     result.style.display = 'block';
     spinButton.style.display = 'none';
     closeBtn.style.display = 'block';
-}
-
-function closeRoulette() {
-    const container = document.getElementById('rouletteContainer');
-    if (container) {
-        container.style.display = 'none';
+    
+    // 🔧 СОХРАНЯЕМ ПРЕДМЕТ В БАЗУ ДАННЫХ
+    try {
+        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/inventory`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                item_name: item.name,
+                item_price: item.price,
+                item_image: item.image
+            })
+        });
+        
+        if (response.ok) {
+            console.log('✅ Предмет сохранен в инвентарь:', item.name);
+            
+            // Обновляем локальный инвентарь
+            if (!userData.inventory) userData.inventory = [];
+            userData.inventory.push(item);
+        } else {
+            console.error('❌ Ошибка сохранения предмета в инвентарь');
+        }
+    } catch (error) {
+        console.error('❌ Ошибка сохранения предмета:', error);
     }
-    loadInventory(); // Обновляем инвентарь
 }
 
 // 🔧 РОЗЫГРЫШИ
@@ -1666,3 +1666,4 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
