@@ -4,7 +4,7 @@ const API_URL = 'https://my-backend-production-9034.up.railway.app/api';
 let currentUser = null;
 let userData = {};
 
-// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ
+// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ - ОБНОВЛЕННАЯ ВЕРСИЯ
 async function loadUserProfile() {
     const urlParams = new URLSearchParams(window.location.search);
     const telegramUserId = urlParams.get('tg');
@@ -26,8 +26,12 @@ async function loadUserProfile() {
         currentUser = fullData.user;
         userData = fullData.data;
         
-        console.log('✅ Данные пользователя загружены:', userData);
+        console.log('✅ Данные пользователя загружены:', {
+            user: currentUser,
+            data: userData
+        });
         
+        // 🔧 ОБНОВЛЯЕМ ИНТЕРФЕЙС С УЧЕТОМ ПОДПИСКИ
         renderProfile();
         updateUI();
         loadCases();
@@ -1777,6 +1781,7 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
