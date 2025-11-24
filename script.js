@@ -4,7 +4,7 @@ const API_URL = 'https://my-backend-production-9034.up.railway.app/api';
 let currentUser = null;
 let userData = {};
 
-// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ - ОБНОВЛЕННАЯ ВЕРСИЯ
+// 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ - УЛУЧШЕННАЯ ВЕРСИЯ
 async function loadUserProfile() {
     const urlParams = new URLSearchParams(window.location.search);
     const telegramUserId = urlParams.get('tg');
@@ -28,7 +28,8 @@ async function loadUserProfile() {
         
         console.log('✅ Данные пользователя загружены:', {
             user: currentUser,
-            data: userData
+            hasPhoto: !!currentUser.photo_url,
+            photoUrl: currentUser.photo_url
         });
         
         // 🔧 ОБНОВЛЯЕМ ИНТЕРФЕЙС С УЧЕТОМ ПОДПИСКИ
@@ -208,7 +209,7 @@ function updateQuestUI(questType, isCompleted, count, lastClaim, reward) {
     }
 }
 
-// 🔧 ПРОФИЛЬ С ФОТО - ИСПРАВЛЕННАЯ ВЕРСИЯ
+// 🔧 ПРОФИЛЬ С ФОТО - ПОЛНОСТЬЮ ПЕРЕРАБОТАННАЯ ВЕРСИЯ
 function renderProfile() {
     if (!currentUser) return;
     
@@ -224,24 +225,34 @@ function renderProfile() {
     document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
     document.getElementById('profileLevel').textContent = userData.level || 1;
     
-    // Аватар из Telegram - ПОЛНОСТЬЮ ПЕРЕРАБОТАННАЯ ЛОГИКА
+    // Аватар из Telegram - УЛУЧШЕННАЯ ВЕРСИЯ
     const avatar = document.getElementById('profileAvatar');
     if (avatar && currentUser.photo_url) {
-        console.log('📸 Загружаем аватар:', currentUser.photo_url);
+        console.log('📸 Пытаемся загрузить аватар:', currentUser.photo_url);
         
-        // Создаем изображение
-        const img = new Image();
-        img.src = currentUser.photo_url;
+        // Проверяем, является ли URL полным
+        let photoUrl = currentUser.photo_url;
+        if (photoUrl.startsWith('photos/')) {
+            photoUrl = `https://api.telegram.org/file/bot8308720989:AAHFS_9JXHB7T6UufDuQB9W-xjWTPU-x0lY/${photoUrl}`;
+        }
+        
+        // Создаем изображение с улучшенной обработкой ошибок
+        const img = document.createElement('img');
+        img.src = photoUrl;
         img.alt = "Avatar";
         img.style.width = '100%';
         img.style.height = '100%';
         img.style.borderRadius = '50%';
         img.style.objectFit = 'cover';
+        img.style.display = 'none'; // Сначала скрываем
         
-        // Обработка ошибок загрузки
         img.onload = function() {
             console.log('✅ Аватар успешно загружен');
-            avatar.innerHTML = '';
+            img.style.display = 'block';
+            // Удаляем все предыдущее содержимое
+            while (avatar.firstChild) {
+                avatar.removeChild(avatar.firstChild);
+            }
             avatar.appendChild(img);
         };
         
@@ -254,14 +265,24 @@ function renderProfile() {
         avatar.innerHTML = '';
         avatar.appendChild(img);
         
+        // Даем изображению время на загрузку
+        setTimeout(() => {
+            if (img.naturalWidth === 0) {
+                console.log('⏰ Таймаут загрузки аватара');
+                showAvatarPlaceholder(avatar, currentUser.first_name);
+            }
+        }, 3000);
+        
     } else {
-        console.log('📸 Аватар не найден, используем placeholder');
+        console.log('📸 Аватар не найден в данных, используем placeholder');
         showAvatarPlaceholder(avatar, currentUser.first_name);
     }
 }
 
 // 🔧 ФУНКЦИЯ ДЛЯ ОТОБРАЖЕНИЯ PLACEHOLDER АВАТАРА
 function showAvatarPlaceholder(avatarElement, firstName) {
+    if (!avatarElement) return;
+    
     const firstLetter = firstName ? firstName[0].toUpperCase() : 'U';
     const colors = ['#ff6b35', '#4CAF50', '#2196F3', '#9C27B0', '#FF9800'];
     const color = colors[firstLetter.charCodeAt(0) % colors.length];
@@ -274,6 +295,8 @@ function showAvatarPlaceholder(avatarElement, firstName) {
         </div>
     `;
 }
+
+
 
 // 🔧 ЗАБРАТЬ НАГРАДУ ЗА ПОДПИСКУ
 async function claimSubscribe() {
@@ -1163,7 +1186,7 @@ async function claimReferralRewards() {
     }
 }
 
-// 🔧 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
+// 🔧 ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ - ИСПРАВЛЕННАЯ ВЕРСИЯ
 async function checkCooldown(questType) {
     const lastClaim = getLastClaim(questType);
     const now = new Date();
@@ -1177,6 +1200,58 @@ async function checkCooldown(questType) {
     }
     
     return true;
+}
+
+function getLastClaim(questType) {
+    switch(questType) {
+        case 'daily':
+            return userData.daily_bonus?.last_claim;
+        case 'subscribe':
+            return userData.subscribe_last_claim;
+        case 'name':
+            return userData.bot_in_bio_last_claim;
+        case 'ref_desc':
+            return userData.ref_in_bio_last_claim;
+        case 'referral':
+            return userData.referral_last_claim;
+        default:
+            return null;
+    }
+}
+
+async function updateCooldown(questType) {
+    try {
+        // Обновляем время последнего получения в базе данных
+        const now = new Date().toISOString();
+        let updateField = '';
+        
+        switch(questType) {
+            case 'daily':
+                updateField = 'daily_bonus_last_claim';
+                break;
+            case 'subscribe':
+                updateField = 'subscribe_last_claim';
+                break;
+            case 'name':
+                updateField = 'bot_in_bio_last_claim';
+                break;
+            case 'ref_desc':
+                updateField = 'ref_in_bio_last_claim';
+                break;
+            case 'referral':
+                updateField = 'referral_last_claim';
+                break;
+        }
+        
+        if (updateField) {
+            await pool.query(
+                `UPDATE user_data SET ${updateField} = $1 WHERE user_id = $2`,
+                [now, currentUser.user_id]
+            );
+        }
+    } catch (error) {
+        console.error('Error updating cooldown:', error);
+    }
 }
 
 function getLastClaim(questType) {
@@ -1772,6 +1847,7 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
