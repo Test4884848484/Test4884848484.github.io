@@ -40,20 +40,27 @@ async function loadUserProfile() {
     }
 }
 
-// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА - ПОЛНОСТЬЮ ПЕРЕРАБОТАННАЯ ВЕРСИЯ
 function updateUI() {
     if (!userData) {
         console.log('❌ userData не определен');
         return;
     }
     
-    console.log('🔄 Обновление интерфейса...');
+    console.log('🔄 Обновление интерфейса...', userData);
     
     // Баланс
     document.getElementById('balance').textContent = userData.balance || 0;
     
-    // Подписка на канал
-    updateQuestUI('subscribe', userData.is_subscribed, userData.subscribe_count, userData.subscribe_last_claim, 100);
+    // 🔧 ПОДПИСКА НА КАНАЛ - ОСНОВНАЯ ЛОГИКА
+    const isSubscribed = userData.is_subscribed;
+    const subscribeCount = userData.subscribe_count || 0;
+    const subscribeLastClaim = userData.subscribe_last_claim;
+    
+    console.log('📢 Статус подписки:', { isSubscribed, subscribeCount, subscribeLastClaim });
+    
+    // Обновляем интерфейс подписки
+    updateSubscriptionUI(isSubscribed, subscribeCount, subscribeLastClaim);
     
     // Бот в био
     updateQuestUI('name', userData.has_bot_in_bio, userData.bot_in_bio_count, userData.bot_in_bio_last_claim, 50);
@@ -72,6 +79,76 @@ function updateUI() {
     document.getElementById('referralCount').textContent = userData.referrals || 0;
     updateProgressBar('referralProgress', userData.referrals || 0, 10);
     updateQuestTimer('referral', userData.referral_last_claim);
+}
+
+// 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ПОДПИСКИ - НОВАЯ ФУНКЦИЯ
+function updateSubscriptionUI(isSubscribed, count, lastClaim) {
+    const completedElement = document.getElementById('subscribeCompleted');
+    const progressElement = document.getElementById('subscribeProgress');
+    const buttonElement = document.getElementById('subscribeButton');
+    const timerElement = document.getElementById('subscribeTimer');
+    
+    if (completedElement) {
+        completedElement.textContent = count || 0;
+    }
+    
+    if (progressElement) {
+        updateProgressBar('subscribeProgress', count || 0, 10);
+    }
+    
+    if (buttonElement) {
+        const now = new Date();
+        const lastClaimTime = lastClaim ? new Date(lastClaim) : null;
+        const cooldown = 60 * 1000; // 1 минута
+        
+        console.log('🔍 Проверка подписки для кнопки:', { isSubscribed, lastClaimTime, cooldown });
+        
+        if (isSubscribed) {
+            // ПОЛЬЗОВАТЕЛЬ ПОДПИСАН
+            if (!lastClaimTime || (now - lastClaimTime) >= cooldown) {
+                // Можно забрать награду
+                buttonElement.disabled = false;
+                buttonElement.textContent = `+100 монет`;
+                buttonElement.style.background = 'linear-gradient(45deg, #ff6b35, #ff8c35)';
+                buttonElement.onclick = claimSubscribe;
+                
+                if (timerElement) {
+                    timerElement.style.display = 'block';
+                    timerElement.textContent = 'Доступно сейчас!';
+                    timerElement.style.color = '#4CAF50';
+                }
+                console.log('✅ Кнопка активна - можно забрать награду');
+            } else {
+                // Кулдаун
+                buttonElement.disabled = true;
+                buttonElement.textContent = `+100 монет`;
+                buttonElement.style.background = '#666';
+                buttonElement.onclick = null;
+                
+                if (timerElement) {
+                    const remaining = cooldown - (now - lastClaimTime);
+                    const seconds = Math.ceil(remaining / 1000);
+                    timerElement.style.display = 'block';
+                    timerElement.textContent = `Доступно через: ${seconds} сек`;
+                    timerElement.style.color = '#ff6b35';
+                }
+                console.log('⏰ Кнопка неактивна - кулдаун');
+            }
+        } else {
+            // ПОЛЬЗОВАТЕЛЬ НЕ ПОДПИСАН
+            buttonElement.disabled = false; // Разрешаем нажатие
+            buttonElement.textContent = 'Подписаться';
+            buttonElement.style.background = 'linear-gradient(45deg, #2196F3, #21CBF3)';
+            buttonElement.onclick = openTelegramChannel; // Открываем канал
+            
+            if (timerElement) {
+                timerElement.style.display = 'block';
+                timerElement.textContent = 'Подпишитесь на канал';
+                timerElement.style.color = '#2196F3';
+            }
+            console.log('📢 Кнопка ведет на канал - пользователь не подписан');
+        }
+    }
 }
 
 // 🔧 ОБНОВЛЕНИЕ ИНТЕРФЕЙСА ЗАДАНИЙ
@@ -127,11 +204,11 @@ function updateQuestUI(questType, isCompleted, count, lastClaim, reward) {
     }
 }
 
-// 🔧 ПРОФИЛЬ С ФОТО
+// 🔧 ПРОФИЛЬ С ФОТО - ИСПРАВЛЕННАЯ ВЕРСИЯ
 function renderProfile() {
     if (!currentUser) return;
     
-    console.log('👤 Рендеринг профиля...');
+    console.log('👤 Рендеринг профиля...', currentUser);
     
     document.getElementById('profileName').textContent = 
         `${currentUser.first_name} ${currentUser.last_name || ''}`.trim();
@@ -143,36 +220,55 @@ function renderProfile() {
     document.getElementById('profileItems').textContent = userData.inventory?.length || 0;
     document.getElementById('profileLevel').textContent = userData.level || 1;
     
-    // Аватар из Telegram - ИСПРАВЛЕННАЯ ВЕРСИЯ
+    // Аватар из Telegram - ПОЛНОСТЬЮ ПЕРЕРАБОТАННАЯ ЛОГИКА
     const avatar = document.getElementById('profileAvatar');
-    if (avatar) {
-        if (currentUser.photo_url) {
-            // Проверяем, является ли URL полным
-            let photoUrl = currentUser.photo_url;
-            if (!photoUrl.startsWith('http')) {
-                photoUrl = `https://api.telegram.org/file/bot8308720989:AAHFS_9JXHB7T6UufDuQB9W-xjWTPU-x0lY/${photoUrl}`;
-            }
-            
-            avatar.innerHTML = `
-                <img src="${photoUrl}" alt="Avatar" 
-                     style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;"
-                     onerror="this.style.display='none'; this.parentNode.innerHTML='👤';">
-            `;
-            console.log('📸 Аватар загружен:', photoUrl);
-        } else {
-            const firstLetter = currentUser.first_name ? currentUser.first_name[0].toUpperCase() : 'U';
-            const colors = ['#ff6b35', '#4CAF50', '#2196F3', '#9C27B0', '#FF9800'];
-            const color = colors[firstLetter.charCodeAt(0) % colors.length];
-            
-            avatar.innerHTML = `
-                <div style="width: 100%; height: 100%; border-radius: 50%; background: ${color}; 
-                           display: flex; align-items: center; justify-content: center; 
-                           color: white; font-size: 24px; font-weight: bold;">
-                    ${firstLetter}
-                </div>
-            `;
-        }
+    if (avatar && currentUser.photo_url) {
+        console.log('📸 Загружаем аватар:', currentUser.photo_url);
+        
+        // Создаем изображение
+        const img = new Image();
+        img.src = currentUser.photo_url;
+        img.alt = "Avatar";
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.borderRadius = '50%';
+        img.style.objectFit = 'cover';
+        
+        // Обработка ошибок загрузки
+        img.onload = function() {
+            console.log('✅ Аватар успешно загружен');
+            avatar.innerHTML = '';
+            avatar.appendChild(img);
+        };
+        
+        img.onerror = function() {
+            console.log('❌ Ошибка загрузки аватара, используем placeholder');
+            showAvatarPlaceholder(avatar, currentUser.first_name);
+        };
+        
+        // Очищаем и добавляем изображение
+        avatar.innerHTML = '';
+        avatar.appendChild(img);
+        
+    } else {
+        console.log('📸 Аватар не найден, используем placeholder');
+        showAvatarPlaceholder(avatar, currentUser.first_name);
     }
+}
+
+// 🔧 ФУНКЦИЯ ДЛЯ ОТОБРАЖЕНИЯ PLACEHOLDER АВАТАРА
+function showAvatarPlaceholder(avatarElement, firstName) {
+    const firstLetter = firstName ? firstName[0].toUpperCase() : 'U';
+    const colors = ['#ff6b35', '#4CAF50', '#2196F3', '#9C27B0', '#FF9800'];
+    const color = colors[firstLetter.charCodeAt(0) % colors.length];
+    
+    avatarElement.innerHTML = `
+        <div style="width: 100%; height: 100%; border-radius: 50%; background: ${color}; 
+                   display: flex; align-items: center; justify-content: center; 
+                   color: white; font-size: 24px; font-weight: bold;">
+            ${firstLetter}
+        </div>
+    `;
 }
 
 // 🔧 ЗАБРАТЬ НАГРАДУ ЗА ПОДПИСКУ
@@ -1681,5 +1777,6 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
