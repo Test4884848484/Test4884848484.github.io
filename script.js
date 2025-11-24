@@ -744,45 +744,64 @@ function updateQuestTimer(questType, lastClaim) {
 
 
 
-// 🔧 ЕЖЕДНЕВНЫЙ БОНУС
+// 🔧 ЕЖЕДНЕВНЫЙ БОНУС - ИСПРАВЛЕННАЯ ВЕРСИЯ
 async function claimDailyBonus() {
     console.log('🎯 Нажата кнопка ежедневного бонуса');
     
-    if (!userData.daily_bonus || userData.daily_bonus.count >= 7) {
-        showNotification('❌ Достигнут лимит бонусов на сегодня', 'error');
+    if (!currentUser) {
+        showNotification('❌ Пользователь не найден', 'error');
         return;
     }
     
+    // Проверяем кулдаун
     if (!await checkCooldown('daily')) return;
     
-    const reward = userData.daily_bonus.current_reward || 10;
+    const dailyBonus = userData.daily_bonus || {};
+    const reward = dailyBonus.current_reward || 10;
     
     try {
-        // Обновляем баланс
+        // Обновляем баланс через правильный endpoint
         const newBalance = (userData.balance || 0) + reward;
-        const response = await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
-            method: 'PUT',
+        
+        // Сохраняем данные пользователя с обновленным балансом
+        const saveResponse = await fetch(`${API_URL}/user/data/${currentUser.user_id}`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ balance: newBalance })
+            body: JSON.stringify({
+                ...userData,
+                balance: newBalance,
+                daily_bonus: {
+                    count: (dailyBonus.count || 0) + 1,
+                    last_claim: new Date().toISOString(),
+                    current_reward: (dailyBonus.current_reward || 10) + 10
+                }
+            })
         });
         
-        if (response.ok) {
-            // Обновляем кулдаун
-            await updateCooldown('daily');
-            
+        if (saveResponse.ok) {
             // Обновляем локальные данные
             userData.balance = newBalance;
-            userData.daily_bonus.count = (userData.daily_bonus.count || 0) + 1;
-            userData.daily_bonus.current_reward = (userData.daily_bonus.current_reward || 10) + 10;
-            userData.daily_bonus.last_claim = new Date().toISOString();
-            
-            // Сохраняем данные
-            await saveUserData();
+            userData.daily_bonus = {
+                count: (dailyBonus.count || 0) + 1,
+                last_claim: new Date().toISOString(),
+                current_reward: (dailyBonus.current_reward || 10) + 10
+            };
             
             showNotification(`🎉 +${reward} монет!`, 'success');
             updateUI();
+            
+            // Сохраняем в основную таблицу users
+            try {
+                await fetch(`${API_URL}/user/${currentUser.user_id}/balance`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ balance: newBalance })
+                });
+            } catch (balanceError) {
+                console.log('⚠️ Не удалось обновить баланс в основной таблице:', balanceError);
+            }
         } else {
-            throw new Error('Ошибка обновления баланса');
+            throw new Error('Ошибка сохранения данных');
         }
     } catch (error) {
         console.error('Error claiming daily bonus:', error);
@@ -1753,6 +1772,7 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
