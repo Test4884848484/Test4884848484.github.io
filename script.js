@@ -568,7 +568,7 @@ function updateQuestTimer(questType, lastClaim) {
     }
 }
 
-// 🔧 ИНИЦИАЛИЗАЦИЯ КНОПОК
+// 🔧 ИНИЦИАЛИЗАЦИЯ КНОПОК - ОБНОВЛЕННАЯ
 function initQuests() {
     console.log('🔘 Инициализация кнопок заданий...');
     
@@ -579,45 +579,35 @@ function initQuests() {
         console.log('✅ Кнопка ежедневного бонуса инициализирована');
     }
     
-    // Подписка на канал - ОСОБАЯ ЛОГИКА (обработчик устанавливается динамически)
+    // Подписка на канал - обработчик устанавливается динамически в updateSubscriptionUI
     const subscribeButton = document.getElementById('subscribeButton');
     if (subscribeButton) {
-        console.log('✅ Кнопка подписки инициализирована (динамический обработчик)');
-        // Обработчик будет устанавливаться в updateSubscriptionUI в зависимости от статуса подписки
+        console.log('✅ Кнопка подписки найдена, обработчик будет установлен динамически');
     }
     
-    // Имя бота в фамилии
+    // Остальные кнопки...
     const nameButton = document.getElementById('nameButton');
     if (nameButton) {
         nameButton.addEventListener('click', checkBotInBio);
-        console.log('✅ Кнопка имени бота инициализирована');
     }
     
-    // Реф. ссылка в описании
     const refDescButton = document.getElementById('refDescButton');
     if (refDescButton) {
         refDescButton.addEventListener('click', checkRefInDescription);
-        console.log('✅ Кнопка реф. ссылки инициализирована');
     }
     
-    // Копирование реферальной ссылки
     const copyRefButton = document.getElementById('copyRefButton');
     if (copyRefButton) {
         copyRefButton.addEventListener('click', copyReferralLink);
-        console.log('✅ Кнопка копирования ссылки инициализирована');
     }
     
-    // Рефералы
     const referralButton = document.getElementById('referralButton');
     if (referralButton) {
         referralButton.addEventListener('click', claimReferralRewards);
-        console.log('✅ Кнопка рефералов инициализирована');
     }
     
-    // Модальное окно
-    initModal();
+    console.log('✅ Все кнопки инициализированы');
 }
-
 
 
 
@@ -1843,6 +1833,7 @@ window.showCaseDetails = showCaseDetails;
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
