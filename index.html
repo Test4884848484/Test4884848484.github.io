@@ -75,45 +75,41 @@
                     <button class="quest-button" id="nameButton">+50 монет</button>
                 </div>
 
-                <!-- Реф. ссылка в описании -->
-                <div class="quest-card">
-                    <div class="quest-header">
-                        <div class="quest-title"><span class="telegram-icon">✈️</span>Реф. ссылка в описании</div>
-                        <div class="quest-reward">+20 монет</div>
-                    </div>
-                    <div class="quest-description">Добавь реф. ссылку в описание профиля</div>
-                    <div class="quest-progress">
-                        <span class="progress-text">Выполнено:</span>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="refDescProgress" style="width: 0%"></div>
-                        </div>
-                        <span class="progress-text"><span id="refDescCompleted">0</span>/10 дней</span>
-                    </div>
-                    <div class="quest-timer" id="refDescTimer" style="display: none;">Доступно через: 60 сек</div>
-                    <div class="modal-buttons">
-                        <button class="quest-button secondary" id="copyRefButton">Скопировать ссылку</button>
-                        <button class="quest-button" id="refDescButton">+20 монет</button>
-                    </div>
-                </div>
 
-                <!-- Пригласи друга -->
-                <div class="quest-card">
-                    <div class="quest-header">
-                        <div class="quest-title">👥 Пригласи друга</div>
-                        <div class="quest-reward">+100 монет</div>
-                    </div>
-                    <div class="quest-description">За каждого друга +100 монет • За 10-го +1000</div>
-                    <div class="quest-progress">
-                        <span class="progress-text">Приглашено:</span>
-                        <div class="progress-bar">
-                            <div class="progress-fill" id="referralProgress" style="width: 0%"></div>
-                        </div>
-                        <span class="progress-text"><span id="referralCount">0</span>/10</span>
-                    </div>
-                    <div class="quest-timer" id="referralTimer" style="display: none;">Доступно через: 60 сек</div>
-                    <button class="quest-button" id="referralButton">Забрать награды</button>
-                </div>
-            </div>
+                <!-- Реф. ссылка в описании (упрощенная версия) -->
+<div class="quest-card">
+    <div class="quest-header">
+        <div class="quest-title"><span class="telegram-icon">✈️</span>Реф. ссылка в описании</div>
+        <div class="quest-reward">+20 монет</div>
+    </div>
+    <div class="quest-description">Добавь реф. ссылку в описание профиля Telegram</div>
+    <div class="quest-progress">
+        <span class="progress-text">Выполнено:</span>
+        <div class="progress-bar">
+            <div class="progress-fill" id="refDescProgress" style="width: 0%"></div>
+        </div>
+        <span class="progress-text"><span id="refDescCompleted">0</span>/10 дней</span>
+    </div>
+    <div class="quest-timer" id="refDescTimer" style="display: none;">Автопроверка каждые 5 мин</div>
+    <button class="quest-button" onclick="openBotForQuest('ref_in_bio')">Выполнить в боте</button>
+</div>
+
+<!-- Пригласи друга (упрощенная версия) -->
+<div class="quest-card">
+    <div class="quest-header">
+        <div class="quest-title">👥 Пригласи друга</div>
+        <div class="quest-reward">+100 монет</div>
+    </div>
+    <div class="quest-description">За каждого друга +100 монет • За 10-го +1000</div>
+    <div class="quest-progress">
+        <span class="progress-text">Приглашено:</span>
+        <div class="progress-bar">
+            <div class="progress-fill" id="referralProgress" style="width: 0%"></div>
+        </div>
+        <span class="progress-text"><span id="referralCount">0</span>/10</span>
+    </div>
+    <button class="quest-button" onclick="openBotForReferrals()">Получить ссылку в боте</button>
+</div>
 
             <!-- Розыгрыши -->
             <div class="quests-section raffles-section">
