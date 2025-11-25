@@ -262,6 +262,32 @@ function updateQuestTimer(questType, lastClaim) {
     }
 }
 
+// 🔧 ОТКРЫТИЕ БОТА ДЛЯ ЗАДАНИЙ
+function openBotForQuest(questType) {
+    const botUrl = 'https://t.me/CS2DropZone_bot';
+    
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.openTelegramLink(botUrl);
+    } else {
+        window.open(botUrl, '_blank');
+    }
+    
+    showNotification('📱 Открываем бота для выполнения задания...', 'info');
+}
+
+// 🔧 ОТКРЫТИЕ БОТА ДЛЯ РЕФЕРАЛОВ
+function openBotForReferrals() {
+    const botUrl = 'https://t.me/CS2DropZone_bot';
+    
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.openTelegramLink(botUrl);
+    } else {
+        window.open(botUrl, '_blank');
+    }
+    
+    showNotification('📱 Открываем бота для получения реф.ссылки...', 'info');
+}
+
 // 🔧 ИНИЦИАЛИЗАЦИЯ КНОПОК
 function initQuests() {
     console.log('🔘 Инициализация кнопок заданий...');
@@ -669,4 +695,5 @@ window.showCaseDetails = function(caseId) {
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
