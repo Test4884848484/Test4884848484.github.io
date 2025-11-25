@@ -277,7 +277,7 @@ function initQuests() {
     console.log('✅ Все кнопки инициализированы');
 }
 
-// 🔧 ЕЖЕДНЕВНЫЙ БОНУС (единственное задание, работающее на сайте)
+// 🔧 ЕЖЕДНЕВНЫЙ БОНУС (исправленная версия)
 async function claimDailyBonus() {
     console.log('🎯 Нажата кнопка ежедневного бонуса');
     
@@ -290,15 +290,12 @@ async function claimDailyBonus() {
     const reward = dailyBonus.current_reward || 10;
     
     try {
-        // Обновляем баланс
-        const newBalance = (currentUser.balance || 0) + reward;
-        
-        // Обновляем данные на сервере
+        // ТОЛЬКО ОДИН ЗАПРОС - обновляем все данные сразу
         const saveResponse = await fetch(`${API_URL}/user/data/${currentUser.user_id}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                balance: newBalance,
+                balance: (currentUser.balance || 0) + reward,
                 daily_bonus: {
                     count: (dailyBonus.count || 0) + 1,
                     last_claim: new Date().toISOString(),
@@ -308,18 +305,8 @@ async function claimDailyBonus() {
         });
         
         if (saveResponse.ok) {
-            // Обновляем задание на сервере
-            await fetch(`${API_URL}/user/${currentUser.user_id}/complete-quest`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    quest_type: 'daily_bonus',
-                    reward: reward
-                })
-            });
-            
             // Обновляем локальные данные
-            currentUser.balance = newBalance;
+            currentUser.balance = (currentUser.balance || 0) + reward;
             userData.daily_bonus = {
                 count: (dailyBonus.count || 0) + 1,
                 last_claim: new Date().toISOString(),
@@ -682,3 +669,4 @@ window.showCaseDetails = function(caseId) {
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
