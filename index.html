@@ -57,6 +57,72 @@
                     <button class="quest-button" id="subscribeButton">+100 монет</button>
                 </div>
 
+                <!-- Добавьте эту секцию после существующего кода -->
+<!-- Секция проверки заданий (показывается только при открытии из бота) -->
+<div id="questCheck" class="tab-content" style="display: none;">
+    <div class="quests-section">
+        <div class="section-title" id="checkTitle">🔍 Проверка задания</div>
+        
+        <!-- Проверка бота в фамилии -->
+        <div id="botBioCheck" class="quest-card" style="display: none;">
+            <div class="quest-header">
+                <div class="quest-title">🤖 Бот в фамилии</div>
+                <div class="quest-reward">+50 монет</div>
+            </div>
+            <div class="user-profile-info">
+                <div class="profile-field">
+                    <span>Имя:</span>
+                    <span id="checkFirstName">-</span>
+                </div>
+                <div class="profile-field">
+                    <span>Фамилия:</span>
+                    <span id="checkLastName">-</span>
+                </div>
+                <div class="profile-field">
+                    <span>Статус:</span>
+                    <span id="botBioStatus" class="status-pending">⏳ Проверка...</span>
+                </div>
+            </div>
+            <button class="quest-button" id="claimBotBioButton" style="display: none;">💎 Получить 50 монет</button>
+            <div class="error-message" id="botBioError" style="display: none;">
+                ❌ Добавьте "@CS2DropZone_bot" в конец фамилии в настройках Telegram
+            </div>
+        </div>
+
+        <!-- Проверка реф ссылки в описании -->
+        <div id="refBioCheck" class="quest-card" style="display: none;">
+            <div class="quest-header">
+                <div class="quest-title">🔗 Реф.ссылка в описании</div>
+                <div class="quest-reward">+20 монет</div>
+            </div>
+            <div class="user-profile-info">
+                <div class="profile-field">
+                    <span>Ваша реф.ссылка:</span>
+                    <span id="refLinkText" class="ref-link">-</span>
+                </div>
+                <div class="profile-field">
+                    <span>Статус:</span>
+                    <span id="refBioStatus" class="status-pending">⏳ Проверка...</span>
+                </div>
+            </div>
+            <button class="quest-button" id="claimRefBioButton" style="display: none;">💎 Получить 20 монет</button>
+            <div class="error-message" id="refBioError" style="display: none;">
+                ❌ Добавьте реферальную ссылку в описание профиля Telegram
+            </div>
+            <button class="quest-button secondary" onclick="copyRefLink()">📋 Скопировать ссылку</button>
+        </div>
+
+        <!-- Результат проверки -->
+        <div id="checkResult" class="quest-card" style="display: none;">
+            <div class="quest-header">
+                <div class="quest-title">✅ Результат проверки</div>
+            </div>
+            <div id="resultMessage"></div>
+            <button class="quest-button" onclick="closeWebApp()">🎮 Вернуться в бота</button>
+        </div>
+    </div>
+</div>
+
                 <!-- Имя бота в фамилии -->
                 <div class="quest-card">
                     <div class="quest-header">
