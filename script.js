@@ -697,3 +697,4 @@ window.participateRaffle = participateRaffle;
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
 
 
+
