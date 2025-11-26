@@ -5,6 +5,186 @@ let currentUser = null;
 let userData = {};
 let currentCase = null;
 
+// 🔧 ИНИЦИАЛИЗАЦИЯ WEB APP ПРОВЕРКИ
+function initQuestCheck() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const checkType = urlParams.get('check_type');
+    
+    if (checkType && window.Telegram && window.Telegram.WebApp) {
+        // Показываем секцию проверки вместо основной
+        document.getElementById('main').style.display = 'none';
+        document.getElementById('questCheck').style.display = 'block';
+        document.querySelector('.nav').style.display = 'none'; // Скрываем навигацию
+        
+        // Инициализируем Web App
+        const tg = window.Telegram.WebApp;
+        tg.expand(); // Раскрываем на весь экран
+        tg.BackButton.show();
+        tg.BackButton.onClick(closeWebApp);
+        
+        // Запускаем проверку в зависимости от типа
+        switch(checkType) {
+            case 'bot_bio':
+                initBotBioCheck();
+                break;
+            case 'ref_bio':
+                initRefBioCheck();
+                break;
+            default:
+                showCheckResult('❌ Неизвестный тип проверки');
+        }
+    }
+}
+
+// 🔧 ПРОВЕРКА БОТА В ФАМИЛИИ
+async function initBotBioCheck() {
+    const tg = window.Telegram.WebApp;
+    const user = tg.initDataUnsafe.user;
+    
+    if (!user) {
+        showCheckResult('❌ Не удалось получить данные пользователя');
+        return;
+    }
+    
+    // Показываем информацию о пользователе
+    document.getElementById('checkTitle').textContent = '🔍 Проверка бота в фамилии';
+    document.getElementById('botBioCheck').style.display = 'block';
+    document.getElementById('checkFirstName').textContent = user.first_name || 'Не указано';
+    document.getElementById('checkLastName').textContent = user.last_name || 'Не указано';
+    
+    // Проверяем наличие бота в фамилии
+    const lastName = user.last_name || '';
+    const hasBotInBio = lastName.toLowerCase().includes('@cs2dropzone_bot');
+    
+    setTimeout(() => {
+        if (hasBotInBio) {
+            document.getElementById('botBioStatus').textContent = '✅ Бот найден в фамилии!';
+            document.getElementById('botBioStatus').className = 'status-success';
+            document.getElementById('claimBotBioButton').style.display = 'block';
+        } else {
+            document.getElementById('botBioStatus').textContent = '❌ Бот не найден в фамилии';
+            document.getElementById('botBioStatus').className = 'status-error';
+            document.getElementById('botBioError').style.display = 'block';
+        }
+    }, 1500);
+    
+    // Обработчик получения награды
+    document.getElementById('claimBotBioButton').onclick = () => claimQuestReward('bot_in_bio', 50, 'бота в фамилии');
+}
+
+// 🔧 ПРОВЕРКА РЕФ ССЫЛКИ В ОПИСАНИИ
+async function initRefBioCheck() {
+    const tg = window.Telegram.WebApp;
+    const user = tg.initDataUnsafe.user;
+    
+    if (!user) {
+        showCheckResult('❌ Не удалось получить данные пользователя');
+        return;
+    }
+    
+    // Получаем реферальную ссылку
+    const refCode = currentUser?.referral_code || `ref_${user.id}`;
+    const botUsername = 'CS2DropZone_bot';
+    const refLink = `https://t.me/${botUsername}?start=${refCode}`;
+    
+    // Показываем информацию
+    document.getElementById('checkTitle').textContent = '🔍 Проверка реф.ссылки в описании';
+    document.getElementById('refBioCheck').style.display = 'block';
+    document.getElementById('refLinkText').textContent = refLink;
+    
+    // В реальном сценарии здесь была бы проверка через Telegram API
+    // Но так как это невозможно, используем альтернативный подход
+    setTimeout(() => {
+        // Даем пользователю возможность подтвердить выполнение
+        document.getElementById('refBioStatus').textContent = '✅ Подтвердите выполнение';
+        document.getElementById('refBioStatus').className = 'status-success';
+        document.getElementById('claimRefBioButton').style.display = 'block';
+        document.getElementById('refBioError').style.display = 'none';
+    }, 1500);
+    
+    // Обработчик получения награды
+    document.getElementById('claimRefBioButton').onclick = () => claimQuestReward('ref_in_bio', 20, 'реф.ссылки в описании');
+}
+
+// 🔧 ПОЛУЧЕНИЕ НАГРАДЫ ЗА ЗАДАНИЕ
+async function claimQuestReward(questType, reward, questName) {
+    const tg = window.Telegram.WebApp;
+    const user = tg.initDataUnsafe.user;
+    
+    try {
+        showNotification('⏳ Начисляем награду...', 'info');
+        
+        const response = await fetch(`${API_URL}/user/${user.id}/complete-quest`, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                quest_type: questType,
+                reward: reward
+            })
+        });
+        
+        if (response.ok) {
+            const result = await response.json();
+            showCheckResult(
+                `🎉 Задание выполнено!\n\n` +
+                `💎 +${reward} монет начислено!\n` +
+                `📊 Выполнено раз: ${result.new_count || 1}\n\n` +
+                `✅ Вы успешно выполнили задание "${questName}"`
+            );
+            
+            // Обновляем баланс если пользователь загружен
+            if (currentUser) {
+                currentUser.balance = (currentUser.balance || 0) + reward;
+                document.getElementById('balance').textContent = currentUser.balance;
+            }
+        } else {
+            throw new Error('Ошибка сервера');
+        }
+    } catch (error) {
+        console.error('Error claiming reward:', error);
+        showCheckResult('❌ Ошибка при начислении награды. Попробуйте позже.');
+    }
+}
+
+// 🔧 ПОКАЗАТЬ РЕЗУЛЬТАТ ПРОВЕРКИ
+function showCheckResult(message) {
+    document.getElementById('botBioCheck').style.display = 'none';
+    document.getElementById('refBioCheck').style.display = 'none';
+    document.getElementById('checkResult').style.display = 'block';
+    document.getElementById('resultMessage').textContent = message;
+}
+
+// 🔧 КОПИРОВАНИЕ РЕФЕРАЛЬНОЙ ССЫЛКИ
+function copyRefLink() {
+    const refLink = document.getElementById('refLinkText').textContent;
+    navigator.clipboard.writeText(refLink).then(() => {
+        showNotification('📋 Ссылка скопирована!', 'success');
+    });
+}
+
+// 🔧 ЗАКРЫТИЕ WEB APP
+function closeWebApp() {
+    if (window.Telegram && window.Telegram.WebApp) {
+        window.Telegram.WebApp.close();
+    } else {
+        // Если не в Web App, просто скрываем проверку
+        document.getElementById('questCheck').style.display = 'none';
+        document.getElementById('main').style.display = 'block';
+        document.querySelector('.nav').style.display = 'flex';
+    }
+}
+
+// 🔧 ОБНОВИТЕ ИНИЦИАЛИЗАЦИЮ ПРИЛОЖЕНИЯ
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('🚀 Инициализация приложения...');
+    loadUserProfile();
+    initNavigation();
+    initQuests();
+    initModal();
+    startTimers();
+    initQuestCheck(); // ✅ Добавьте эту строку!
+});
+
 // 🔧 ЗАГРУЗКА ДАННЫХ ПОЛЬЗОВАТЕЛЯ
 async function loadUserProfile() {
     const urlParams = new URLSearchParams(window.location.search);
@@ -695,6 +875,7 @@ window.showCaseDetails = function(caseId) {
 window.participateRaffle = participateRaffle;
 
 console.log('✅ Все функции JavaScript загружены и готовы к работе!');
+
 
 
 
