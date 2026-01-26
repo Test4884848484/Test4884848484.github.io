@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Карточный Шутер от 1 лица</title>
+    <title>3D Карточный Лабиринт</title>
     <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.132.2/examples/js/controls/PointerLockControls.js"></script>
     <style>
         * {
             margin: 0;
@@ -41,15 +42,15 @@
         
         .health-bar {
             position: absolute;
-            bottom: 30px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 300px;
-            height: 20px;
+            top: 20px;
+            left: 20px;
+            width: 200px;
+            height: 25px;
             background: rgba(255, 0, 0, 0.3);
-            border-radius: 10px;
+            border-radius: 12px;
             border: 2px solid #ff5555;
             overflow: hidden;
+            box-shadow: 0 0 10px rgba(255, 0, 0, 0.5);
         }
         
         .health-fill {
@@ -61,9 +62,8 @@
         
         .health-text {
             position: absolute;
-            bottom: 55px;
-            left: 50%;
-            transform: translateX(-50%);
+            top: 50px;
+            left: 20px;
             font-size: 24px;
             font-weight: bold;
             color: white;
@@ -73,44 +73,38 @@
         .score-display {
             position: absolute;
             top: 20px;
-            left: 20px;
+            right: 20px;
             font-size: 28px;
             font-weight: bold;
             color: #00ffea;
             text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            text-align: right;
         }
         
-        .ability-display {
+        .ability-icons {
             position: absolute;
-            top: 70px;
+            bottom: 20px;
             left: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #00ff88;
-            min-width: 250px;
-        }
-        
-        .ability-display h3 {
-            color: #00ff88;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-        
-        .ability-item {
             display: flex;
-            align-items: center;
-            margin: 8px 0;
-            font-size: 16px;
+            gap: 10px;
         }
         
         .ability-icon {
-            width: 30px;
-            height: 30px;
-            margin-right: 10px;
-            font-size: 20px;
-            text-align: center;
-            line-height: 30px;
+            width: 50px;
+            height: 50px;
+            background: rgba(0, 0, 0, 0.7);
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: #00ff88;
+        }
+        
+        .ability-icon.active {
+            background: rgba(0, 255, 136, 0.3);
+            box-shadow: 0 0 15px #00ff88;
         }
         
         .crosshair {
@@ -118,21 +112,10 @@
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            width: 40px;
-            height: 40px;
+            width: 30px;
+            height: 30px;
             pointer-events: none;
-        }
-        
-        .crosshair-inner {
-            position: absolute;
-            width: 4px;
-            height: 4px;
-            background: #00ffea;
-            border-radius: 50%;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 10px #00ffea;
+            z-index: 5;
         }
         
         .crosshair::before,
@@ -140,6 +123,7 @@
             content: '';
             position: absolute;
             background: #00ffea;
+            box-shadow: 0 0 3px #00ffea;
         }
         
         .crosshair::before {
@@ -158,34 +142,38 @@
             transform: translate(-50%, -50%);
         }
         
-        .bullet-count {
+        .bullet-indicator {
             position: absolute;
-            bottom: 100px;
-            right: 30px;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
             font-size: 24px;
             color: #ffaa00;
             font-weight: bold;
-            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
         }
         
-        .players-display {
+        .bullet-icon {
+            font-size: 32px;
+            animation: pulse 1s infinite;
+        }
+        
+        .platform-indicator {
             position: absolute;
-            bottom: 30px;
-            right: 30px;
-            display: flex;
-            gap: 10px;
-        }
-        
-        .player-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: #00ff88;
+            bottom: 80px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 10px 20px;
+            border-radius: 10px;
+            border: 2px solid #0088ff;
+            font-size: 18px;
+            font-weight: bold;
+            color: #0088ff;
             display: flex;
             align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            border: 2px solid white;
+            gap: 10px;
         }
         
         .game-over {
@@ -207,6 +195,7 @@
             color: #ff5555;
             font-size: 48px;
             margin-bottom: 20px;
+            text-align: center;
         }
         
         .game-over p {
@@ -235,147 +224,134 @@
         
         .ability-notification {
             position: fixed;
-            top: 50%;
+            top: 20%;
             left: 50%;
-            transform: translate(-50%, -50%);
+            transform: translateX(-50%);
             background: rgba(0, 0, 0, 0.9);
-            padding: 20px 30px;
-            border-radius: 15px;
+            padding: 15px 25px;
+            border-radius: 10px;
             border: 3px solid #00ff88;
-            font-size: 24px;
+            font-size: 20px;
             font-weight: bold;
             color: #00ff88;
             z-index: 50;
             text-align: center;
             display: none;
             min-width: 300px;
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
         }
         
-        .card-coming {
+        .instructions {
             position: absolute;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.7);
-            padding: 15px;
-            border-radius: 10px;
-            border: 2px solid #ffaa00;
-            min-width: 200px;
-        }
-        
-        .card-coming h3 {
-            color: #ffaa00;
-            margin-bottom: 10px;
-            font-size: 18px;
-        }
-        
-        .card-info {
-            display: flex;
-            align-items: center;
-            margin: 8px 0;
-            padding: 8px;
-            border-radius: 5px;
-            background: rgba(255, 255, 255, 0.1);
-        }
-        
-        .card-image {
-            width: 40px;
-            height: 40px;
-            margin-right: 10px;
-            font-size: 24px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 15px;
+            border: 3px solid #00ffea;
             text-align: center;
-            line-height: 40px;
-            border-radius: 5px;
+            max-width: 500px;
+            z-index: 20;
         }
         
-        .card-negative .card-image {
-            background: rgba(255, 0, 0, 0.3);
-            border: 2px solid #ff5555;
+        .instructions h2 {
+            color: #00ffea;
+            margin-bottom: 20px;
         }
         
-        .card-positive .card-image {
-            background: rgba(0, 100, 255, 0.3);
-            border: 2px solid #0088ff;
-        }
-        
-        .card-value {
+        .instructions p {
+            margin: 10px 0;
             font-size: 18px;
-            font-weight: bold;
-            margin-left: auto;
         }
         
-        .card-health {
-            font-size: 14px;
-            color: #aaa;
-            margin-top: 2px;
-        }
-        
-        .mobile-fire {
-            position: fixed;
-            bottom: 100px;
-            right: 100px;
-            width: 80px;
-            height: 80px;
-            border-radius: 50%;
-            background: rgba(255, 0, 0, 0.5);
-            border: 3px solid white;
-            display: none;
-            justify-content: center;
-            align-items: center;
-            font-size: 24px;
+        .start-btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 18px;
+            background: linear-gradient(45deg, #0088ff, #00ff88);
+            border: none;
+            border-radius: 20px;
             color: white;
+            cursor: pointer;
+            font-weight: bold;
             pointer-events: auto;
         }
         
+        .swipe-hint {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: #00ffea;
+            font-size: 18px;
+            text-align: center;
+            display: none;
+        }
+        
         @media (max-width: 768px) {
-            .score-display {
-                font-size: 22px;
+            .health-bar {
                 top: 10px;
                 left: 10px;
-            }
-            
-            .ability-display {
-                top: 50px;
-                left: 10px;
-                padding: 10px;
-                min-width: 200px;
-            }
-            
-            .health-bar {
-                width: 250px;
-                bottom: 100px;
+                width: 150px;
+                height: 20px;
             }
             
             .health-text {
-                bottom: 125px;
+                top: 35px;
+                left: 10px;
+                font-size: 18px;
             }
             
-            .bullet-count {
-                bottom: 150px;
-                right: 20px;
-            }
-            
-            .players-display {
-                bottom: 100px;
-                right: 20px;
-            }
-            
-            .card-coming {
+            .score-display {
                 top: 10px;
                 right: 10px;
-                padding: 10px;
+                font-size: 20px;
             }
             
-            .mobile-fire {
-                display: flex;
+            .ability-icons {
+                bottom: 10px;
+                left: 10px;
+            }
+            
+            .ability-icon {
+                width: 40px;
+                height: 40px;
+                font-size: 20px;
+            }
+            
+            .bullet-indicator {
+                bottom: 10px;
+                right: 10px;
+                font-size: 18px;
+            }
+            
+            .platform-indicator {
+                bottom: 60px;
+                font-size: 16px;
+                padding: 8px 15px;
+            }
+            
+            .swipe-hint {
+                display: block;
             }
         }
         
-        .debug-info {
-            position: absolute;
-            bottom: 10px;
-            left: 10px;
-            color: #aaa;
-            font-size: 12px;
+        @keyframes pulse {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+            100% { transform: scale(1); }
+        }
+        
+        @keyframes slideIn {
+            from { transform: translateX(100px); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        
+        @keyframes platformGlow {
+            0% { box-shadow: 0 0 10px #0088ff; }
+            50% { box-shadow: 0 0 30px #0088ff; }
+            100% { box-shadow: 0 0 10px #0088ff; }
         }
     </style>
 </head>
@@ -392,48 +368,37 @@
             Счет: <span id="score">0</span>
         </div>
         
-        <div class="ability-display">
-            <h3>СПОСОБНОСТИ</h3>
-            <div class="ability-item">
-                <div class="ability-icon">👥</div>
-                <div>Игроки: <span id="ability-players">1</span></div>
-            </div>
-            <div class="ability-item">
-                <div class="ability-icon">⚡</div>
-                <div>Скорость стрельбы: <span id="ability-fire-rate">1.0x</span></div>
-            </div>
-            <div class="ability-item">
-                <div class="ability-icon">💥</div>
-                <div>Двойные пули: <span id="ability-double">НЕТ</span></div>
-            </div>
-            <div class="ability-item">
-                <div class="ability-icon">🎯</div>
-                <div>Разброс: <span id="ability-spread">НЕТ</span></div>
-            </div>
+        <div class="ability-icons">
+            <div class="ability-icon" id="ability-double" title="Двойные пули">💥</div>
+            <div class="ability-icon" id="ability-spread" title="Разброс">🎯</div>
+            <div class="ability-icon" id="ability-rapid" title="Скорострельность">⚡</div>
         </div>
         
-        <div class="crosshair">
-            <div class="crosshair-inner"></div>
+        <div class="bullet-indicator">
+            <div class="bullet-icon">🔫</div>
+            <span id="bullet-counter">∞</span>
         </div>
         
-        <div class="bullet-count">
-            Пули: <span id="bullet-counter">∞</span>
+        <div class="platform-indicator">
+            <span>Платформа:</span>
+            <span id="current-platform">Центральная</span>
         </div>
         
-        <div class="players-display" id="players-display">
-            <div class="player-icon">1</div>
+        <div class="crosshair"></div>
+        
+        <div class="swipe-hint" id="swipe-hint">
+            Смахивайте влево/вправо для смены платформы
         </div>
         
-        <div class="card-coming">
-            <h3>БЛИЖАЙШИЕ КАРТОЧКИ</h3>
-            <div id="cards-list"></div>
+        <div class="instructions" id="instructions">
+            <h2>3D КАРТОЧНЫЙ ЛАБИРИНТ</h2>
+            <p>🔴 Красные карточки - наносят урон</p>
+            <p>🔵 Синие карточки - дают способности</p>
+            <p>🎯 Прицельтесь и стреляйте по карточкам</p>
+            <p>🔄 Смахивайте влево/вправо для смены платформы</p>
+            <p>⚡ Собирайте синие карточки для улучшений</p>
+            <button class="start-btn" id="start-btn">НАЧАТЬ ИГРУ</button>
         </div>
-        
-        <div class="mobile-fire" id="mobile-fire-btn">
-            🔫
-        </div>
-        
-        <div class="debug-info" id="debug-info"></div>
     </div>
     
     <div class="game-over" id="game-over">
@@ -451,27 +416,31 @@
     <script>
         // Основные константы игры
         const GAME_CONFIG = {
-            playerSpeed: 0.05,
-            bulletSpeed: 0.8,
-            fireRate: 300, // мс между выстрелами
-            cardSpeed: 0.1, // Скорость приближения карточек
-            cardSpawnDistance: 40,
-            maxCards: 8,
+            playerSpeed: 0.5, // Скорость перехода между платформами
+            bulletSpeed: 1.5,
+            fireRate: 250,
+            cardSpeed: 0.08, // Карточки движутся к игроку
+            maxCards: 15,
             initialHealth: 100,
+            platforms: 3, // Левая, Центральная, Правая
+            
+            // Позиции платформ
+            platformPositions: [-4, 0, 4],
+            platformWidth: 3,
+            platformDepth: 20,
+            platformHeight: 0.5,
             
             // Балансировка карточек
             cardValues: {
-                negative: [-30, -25, -20, -18, -15, -12, -10, -8, -5],
-                positiveHealth: [5, 8, 10, 12, 15], // + к здоровью
-                positiveAbilities: [1, 1, 1, 2, 2, 3] // уровень способности
+                negative: [-15, -12, -10, -8, -6, -5, -4, -3],
+                positive: [1, 1, 2, 2, 3] // уровень способности
             },
             
-            // Настройки способностей
+            // Способности
             abilities: {
-                extraPlayer: { cost: 3, max: 2 }, // Нужно 3 положительных карточки для нового игрока
-                fireRate: { base: 1.0, increment: 0.2, max: 3.0 },
-                doubleBullets: { cost: 2 },
-                spreadShot: { cost: 2 }
+                doubleBullets: { required: 2 },
+                spreadShot: { required: 3 },
+                rapidFire: { required: 4, multiplier: 0.8 }
             }
         };
 
@@ -480,82 +449,74 @@
             score: 0,
             health: GAME_CONFIG.initialHealth,
             maxHealth: GAME_CONFIG.initialHealth,
-            players: 1,
-            fireRateMultiplier: 1.0,
-            bulletDamage: 1,
+            currentPlatform: 1, // 0-левая, 1-центральная, 2-правая
+            isMoving: false,
             cardsCollected: 0,
             positiveCardsCollected: 0,
             gameOver: false,
+            gameStarted: false,
             
             // Прогресс способностей
             abilityProgress: {
-                extraPlayer: 0,
-                fireRate: 0,
                 doubleBullets: 0,
-                spreadShot: 0
+                spreadShot: 0,
+                rapidFire: 0
             },
             
             // Активные способности
             activeAbilities: {
                 doubleBullets: false,
                 spreadShot: false,
-                extraPlayers: 0
+                rapidFire: false
             },
             
-            // Счетчики для балансировки
-            negativeCardsHit: 0,
-            lastPositiveCard: 0
+            // Балансировка
+            difficulty: 1.0,
+            spawnTimer: 0,
+            lastSwipeTime: 0
         };
 
-        // Три полосы для карточек (лево, центр, право)
-        const LANE_POSITIONS = [-3, 0, 3];
+        // Три платформы
         let scene, camera, renderer;
-        let player, otherPlayers = [];
+        let platforms = [];
         let bullets = [];
         let cards = [];
         let mouse = { x: 0, y: 0 };
         let isShooting = false;
         let shootCooldown = false;
+        let controls;
+        let player;
         
         // Элементы UI
         const healthText = document.getElementById('health-text');
         const healthFill = document.getElementById('health-fill');
         const scoreElement = document.getElementById('score');
         const bulletCounter = document.getElementById('bullet-counter');
-        const abilityPlayers = document.getElementById('ability-players');
-        const abilityFireRate = document.getElementById('ability-fire-rate');
         const abilityDouble = document.getElementById('ability-double');
         const abilitySpread = document.getElementById('ability-spread');
-        const playersDisplay = document.getElementById('players-display');
-        const cardsListElement = document.getElementById('cards-list');
+        const abilityRapid = document.getElementById('ability-rapid');
+        const currentPlatform = document.getElementById('current-platform');
         const gameOverScreen = document.getElementById('game-over');
         const finalScoreElement = document.getElementById('final-score');
         const cardsCollectedElement = document.getElementById('cards-collected');
         const highScoreElement = document.getElementById('high-score');
         const restartBtn = document.getElementById('restart-btn');
         const abilityNotification = document.getElementById('ability-notification');
-        const mobileFireBtn = document.getElementById('mobile-fire-btn');
-        const debugInfo = document.getElementById('debug-info');
-
-        // Иконки для способностей
-        const ABILITY_ICONS = {
-            extraPlayer: '👥',
-            fireRate: '⚡',
-            doubleBullets: '💥',
-            spreadShot: '🎯',
-            health: '❤️'
-        };
+        const instructions = document.getElementById('instructions');
+        const startBtn = document.getElementById('start-btn');
+        const swipeHint = document.getElementById('swipe-hint');
 
         // Инициализация игры
         function init() {
             // Создание сцены
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x000022);
-            scene.fog = new THREE.Fog(0x000022, 10, 100);
+            scene.background = new THREE.Color(0x000033);
+            scene.fog = new THREE.Fog(0x000033, 10, 50);
             
             // Камера от первого лица
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.set(0, 2, 0);
+            camera.position.set(0, 3, 10);
+            camera.lookAt(0, 2, 0);
             
             // Рендерер
             renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -568,295 +529,249 @@
             scene.add(ambientLight);
             
             const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
-            directionalLight.position.set(5, 10, 5);
+            directionalLight.position.set(10, 20, 5);
             directionalLight.castShadow = true;
             scene.add(directionalLight);
             
-            // Пол
-            createFloor();
+            // Создание платформ
+            createPlatforms();
+            
+            // Создание окружения
+            createEnvironment();
             
             // Создание игрока (камера уже установлена)
-            createPlayerModel();
-            
-            // Создание других игроков
-            createOtherPlayers();
-            
-            // Создание начальных карточек
-            spawnInitialCards();
+            createPlayer();
             
             // Настройка управления
             setupControls();
             
             // Загрузка рекорда
-            gameState.highScore = localStorage.getItem('cardShooterHighScore') || 0;
+            gameState.highScore = localStorage.getItem('cardPlatformHighScore') || 0;
             highScoreElement.textContent = gameState.highScore;
+            
+            // Показать инструкции
+            instructions.style.display = 'block';
             
             // Игровой цикл
             gameLoop();
-            
-            // Авто-спавн карточек
-            setInterval(() => {
-                if (!gameState.gameOver && cards.length < GAME_CONFIG.maxCards) {
-                    spawnCard();
-                }
-            }, 2000);
         }
         
-        // Создание пола
-        function createFloor() {
+        // Создание платформ
+        function createPlatforms() {
+            const platformMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x333366,
+                emissive: 0x111133,
+                emissiveIntensity: 0.3
+            });
+            
+            const edgeMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x0088ff,
+                emissive: 0x001144,
+                emissiveIntensity: 0.5
+            });
+            
+            for (let i = 0; i < GAME_CONFIG.platforms; i++) {
+                // Основная платформа
+                const platformGeometry = new THREE.BoxGeometry(
+                    GAME_CONFIG.platformWidth,
+                    GAME_CONFIG.platformHeight,
+                    GAME_CONFIG.platformDepth
+                );
+                const platform = new THREE.Mesh(platformGeometry, platformMaterial);
+                platform.position.x = GAME_CONFIG.platformPositions[i];
+                platform.position.y = GAME_CONFIG.platformHeight / 2;
+                platform.position.z = 0;
+                platform.receiveShadow = true;
+                platform.castShadow = true;
+                
+                // Края платформы (свечение)
+                const edgeGeometry = new THREE.BoxGeometry(
+                    GAME_CONFIG.platformWidth + 0.2,
+                    0.1,
+                    GAME_CONFIG.platformDepth + 0.2
+                );
+                const edge = new THREE.Mesh(edgeGeometry, edgeMaterial);
+                edge.position.x = GAME_CONFIG.platformPositions[i];
+                edge.position.y = GAME_CONFIG.platformHeight + 0.05;
+                edge.position.z = 0;
+                
+                const platformGroup = new THREE.Group();
+                platformGroup.add(platform);
+                platformGroup.add(edge);
+                scene.add(platformGroup);
+                platforms.push(platformGroup);
+            }
+            
+            // Подсветка текущей платформы
+            updatePlatformGlow();
+        }
+        
+        // Создание окружения
+        function createEnvironment() {
+            // Пол
             const floorGeometry = new THREE.PlaneGeometry(100, 100);
             const floorMaterial = new THREE.MeshPhongMaterial({ 
-                color: 0x222244,
+                color: 0x111122,
                 side: THREE.DoubleSide
             });
             const floor = new THREE.Mesh(floorGeometry, floorMaterial);
             floor.rotation.x = -Math.PI / 2;
-            floor.position.y = -0.5;
+            floor.position.y = -10;
             floor.receiveShadow = true;
             scene.add(floor);
             
-            // Разметка полос
-            for (let i = -1; i <= 1; i++) {
-                const lineGeometry = new THREE.PlaneGeometry(0.2, 100);
-                const lineMaterial = new THREE.MeshPhongMaterial({ 
-                    color: 0x444466,
-                    side: THREE.DoubleSide
-                });
-                const line = new THREE.Mesh(lineGeometry, lineMaterial);
-                line.rotation.x = -Math.PI / 2;
-                line.position.set(LANE_POSITIONS[i+1], -0.45, 0);
-                scene.add(line);
-            }
+            // Задник
+            const backdropGeometry = new THREE.PlaneGeometry(100, 50);
+            const backdropMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0x000022,
+                side: THREE.DoubleSide
+            });
+            const backdrop = new THREE.Mesh(backdropGeometry, backdropMaterial);
+            backdrop.position.z = -50;
+            backdrop.position.y = 10;
+            scene.add(backdrop);
+            
+            // Частицы в воздухе
+            createParticles();
         }
         
-        // Создание модели игрока (видимой для других игроков)
-        function createPlayerModel() {
-            const group = new THREE.Group();
+        // Создание частиц
+        function createParticles() {
+            const particleCount = 500;
+            const particles = new THREE.BufferGeometry();
+            const positions = new Float32Array(particleCount * 3);
+            const colors = new Float32Array(particleCount * 3);
             
-            // Тело
-            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.5, 8);
-            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff88 });
-            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-            body.position.y = 0.75;
-            body.castShadow = true;
-            group.add(body);
-            
-            // Оружие
-            const gunGroup = new THREE.Group();
-            const gunGeometry = new THREE.BoxGeometry(1.2, 0.2, 0.2);
-            const gunMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
-            const gun = new THREE.Mesh(gunGeometry, gunMaterial);
-            gun.position.set(0.8, 0.8, -0.3);
-            gunGroup.add(gun);
-            
-            const barrelGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8);
-            const barrel = new THREE.Mesh(barrelGeometry, gunMaterial);
-            barrel.position.set(1.45, 0.8, -0.3);
-            barrel.rotation.z = Math.PI / 2;
-            gunGroup.add(barrel);
-            
-            group.add(gunGroup);
-            group.position.set(0, 0, 0);
-            scene.add(group);
-            player = group;
-        }
-        
-        // Создание других игроков
-        function createOtherPlayers() {
-            for (let i = 0; i < 2; i++) {
-                const group = new THREE.Group();
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * 100;
+                positions[i + 1] = Math.random() * 50;
+                positions[i + 2] = (Math.random() - 0.5) * 100;
                 
-                const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.25, 1.2, 8);
-                const bodyMaterial = new THREE.MeshPhongMaterial({ 
-                    color: i === 0 ? 0x0088ff : 0xff8800
-                });
-                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-                body.position.y = 0.6;
-                body.castShadow = true;
-                group.add(body);
-                
-                // Оружие у других игроков
-                const gunGroup = new THREE.Group();
-                const gunGeometry = new THREE.BoxGeometry(1.0, 0.15, 0.15);
-                const gunMaterial = new THREE.MeshPhongMaterial({ color: 0x444444 });
-                const gun = new THREE.Mesh(gunGeometry, gunMaterial);
-                gun.position.set(0.6, 0.7, -0.2);
-                gunGroup.add(gun);
-                group.add(gunGroup);
-                
-                group.visible = false;
-                scene.add(group);
-                otherPlayers.push(group);
-            }
-        }
-        
-        // Обновление позиций других игроков
-        function updateOtherPlayers() {
-            const activePlayers = Math.min(gameState.activeAbilities.extraPlayers, 2);
-            
-            for (let i = 0; i < otherPlayers.length; i++) {
-                if (i < activePlayers) {
-                    otherPlayers[i].visible = true;
-                    
-                    // Позиционирование вокруг основного игрока
-                    const angle = (i + 1) * Math.PI / 2;
-                    const radius = 2;
-                    otherPlayers[i].position.x = Math.cos(angle) * radius;
-                    otherPlayers[i].position.z = Math.sin(angle) * radius;
-                    otherPlayers[i].position.y = 0;
-                    
-                    // Поворот к ближайшей карточке
-                    let nearestCard = findNearestCard();
-                    if (nearestCard) {
-                        otherPlayers[i].lookAt(nearestCard.position);
-                    }
-                } else {
-                    otherPlayers[i].visible = false;
-                }
+                colors[i] = 0.1 + Math.random() * 0.1;
+                colors[i + 1] = 0.2 + Math.random() * 0.2;
+                colors[i + 2] = 0.3 + Math.random() * 0.2;
             }
             
-            // Обновление UI иконок игроков
-            updatePlayersUI();
-        }
-        
-        // Поиск ближайшей карточки
-        function findNearestCard() {
-            let nearest = null;
-            let minDist = Infinity;
+            particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
             
-            cards.forEach(card => {
-                const dist = card.position.length();
-                if (dist < minDist) {
-                    minDist = dist;
-                    nearest = card;
-                }
+            const particleMaterial = new THREE.PointsMaterial({
+                size: 0.1,
+                vertexColors: true,
+                transparent: true,
+                opacity: 0.6
             });
             
-            return nearest;
+            const particleSystem = new THREE.Points(particles, particleMaterial);
+            scene.add(particleSystem);
+        }
+        
+        // Создание игрока (только камера в 1м лице)
+        function createPlayer() {
+            player = camera;
         }
         
         // Создание карточки
         function createCard() {
-            // Балансировка: чем больше отрицательных карточек попало, тем выше шанс положительной
-            let isNegative = true;
-            const negativeRatio = gameState.negativeCardsHit / (gameState.cardsCollected + 1);
+            // Балансировка сложности
+            const isNegative = Math.random() > (0.2 + gameState.positiveCardsCollected * 0.05);
             
-            if (gameState.cardsCollected > 5 && negativeRatio > 0.7) {
-                isNegative = Math.random() > 0.4; // 60% шанс положительной
-            } else {
-                isNegative = Math.random() > 0.3; // 70% шанс отрицательной
-            }
-            
-            // Выбор типа и значения карточки
             let value, abilityType, health;
             
             if (isNegative) {
-                value = GAME_CONFIG.cardValues.negative[
-                    Math.floor(Math.random() * GAME_CONFIG.cardValues.negative.length)
-                ];
+                // Выбор уровня урона в зависимости от сложности
+                const level = Math.min(
+                    Math.floor(gameState.difficulty),
+                    GAME_CONFIG.cardValues.negative.length - 1
+                );
+                value = GAME_CONFIG.cardValues.negative[level];
                 abilityType = null;
-                health = Math.abs(value) * 2; // Отрицательные карточки требуют больше попаданий
+                health = Math.abs(value) * (1 + gameState.difficulty * 0.2); // Увеличиваем здоровье с сложностью
             } else {
                 // Положительная карточка
-                const abilityTypes = ['health', 'fireRate', 'doubleBullets', 'spreadShot', 'extraPlayer'];
-                
-                // Взвешенный выбор способности
-                const weights = [30, 25, 20, 15, 10]; // Здоровье чаще, доп игроки реже
-                let totalWeight = weights.reduce((a, b) => a + b, 0);
-                let random = Math.random() * totalWeight;
-                
-                for (let i = 0; i < abilityTypes.length; i++) {
-                    random -= weights[i];
-                    if (random <= 0) {
-                        abilityType = abilityTypes[i];
-                        break;
-                    }
-                }
-                
-                value = GAME_CONFIG.cardValues.positiveAbilities[
-                    Math.floor(Math.random() * GAME_CONFIG.cardValues.positiveAbilities.length)
+                const abilityTypes = ['doubleBullets', 'spreadShot', 'rapidFire'];
+                abilityType = abilityTypes[Math.floor(Math.random() * abilityTypes.length)];
+                value = GAME_CONFIG.cardValues.positive[
+                    Math.floor(Math.random() * GAME_CONFIG.cardValues.positive.length)
                 ];
-                
-                if (abilityType === 'health') {
-                    value = GAME_CONFIG.cardValues.positiveHealth[
-                        Math.floor(Math.random() * GAME_CONFIG.cardValues.positiveHealth.length)
-                    ];
-                }
-                
-                health = value * 3; // Положительные карточки требуют больше попаданий
+                health = value * (2 + gameState.difficulty * 0.3); // Больше здоровья для положительных карточек
             }
             
-            // Случайная полоса
-            const laneIndex = Math.floor(Math.random() * 3);
+            // Случайная платформа
+            const platformIndex = Math.floor(Math.random() * GAME_CONFIG.platforms);
             
             const group = new THREE.Group();
             
             // Основа карточки
-            const cardGeometry = new THREE.BoxGeometry(1.2, 1.8, 0.1);
+            const cardGeometry = new THREE.BoxGeometry(0.8, 1.2, 0.05);
             const cardMaterial = new THREE.MeshPhongMaterial({ 
                 color: isNegative ? 0xff5555 : 0x0088ff,
                 emissive: isNegative ? 0x440000 : 0x001144,
-                emissiveIntensity: 0.5
+                emissiveIntensity: 0.8,
+                transparent: true,
+                opacity: 0.9
             });
             const card = new THREE.Mesh(cardGeometry, cardMaterial);
             card.castShadow = true;
             group.add(card);
             
-            // Текст значения
+            // Иконка способности
             const canvas = document.createElement('canvas');
-            canvas.width = 256;
-            canvas.height = 256;
+            canvas.width = 128;
+            canvas.height = 128;
             const context = canvas.getContext('2d');
             
-            // Фон
             context.fillStyle = isNegative ? '#ff5555' : '#0088ff';
             context.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Иконка способности
-            if (!isNegative && abilityType) {
-                context.font = 'bold 80px Arial';
-                context.fillStyle = 'white';
-                context.textAlign = 'center';
-                context.textBaseline = 'middle';
-                context.fillText(ABILITY_ICONS[abilityType], canvas.width / 2, canvas.height / 2 - 20);
-                
-                // Текст значения
-                context.font = 'bold 40px Arial';
-                context.fillText(`+${value}`, canvas.width / 2, canvas.height / 2 + 50);
-            } else {
-                // Отрицательная карточка
-                context.font = 'bold 80px Arial';
-                context.fillStyle = 'white';
-                context.textAlign = 'center';
-                context.textBaseline = 'middle';
+            context.font = 'bold 60px Arial';
+            context.fillStyle = 'white';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            
+            if (isNegative) {
                 context.fillText(value.toString(), canvas.width / 2, canvas.height / 2);
+            } else {
+                const icon = abilityType === 'doubleBullets' ? '💥' : 
+                            abilityType === 'spreadShot' ? '🎯' : '⚡';
+                context.fillText(icon, canvas.width / 2, canvas.height / 2);
+                
+                // Маленький текст значения
+                context.font = 'bold 20px Arial';
+                context.fillText(`+${value}`, canvas.width / 2, canvas.height / 2 + 40);
             }
             
             const texture = new THREE.CanvasTexture(canvas);
-            const textGeometry = new THREE.PlaneGeometry(1, 1);
-            const textMaterial = new THREE.MeshBasicMaterial({ 
+            const iconGeometry = new THREE.PlaneGeometry(0.6, 0.6);
+            const iconMaterial = new THREE.MeshBasicMaterial({ 
                 map: texture,
-                transparent: true,
-                side: THREE.DoubleSide
+                transparent: true
             });
-            const text = new THREE.Mesh(textGeometry, textMaterial);
-            text.position.z = 0.06;
-            group.add(text);
+            const icon = new THREE.Mesh(iconGeometry, iconMaterial);
+            icon.position.z = 0.03;
+            group.add(icon);
             
-            // Индикатор здоровья карточки (полоска сверху)
-            const healthBarGeometry = new THREE.PlaneGeometry(1.2, 0.1);
+            // Индикатор здоровья
+            const healthBarGeometry = new THREE.PlaneGeometry(0.8, 0.05);
             const healthBarMaterial = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
             const healthBar = new THREE.Mesh(healthBarGeometry, healthBarMaterial);
-            healthBar.position.y = 1;
-            healthBar.position.z = 0.06;
+            healthBar.position.y = 0.7;
+            healthBar.position.z = 0.03;
             group.add(healthBar);
             
             // Позиционирование
-            group.position.x = LANE_POSITIONS[laneIndex];
-            group.position.z = GAME_CONFIG.cardSpawnDistance;
-            group.position.y = 0.5;
+            const platformX = GAME_CONFIG.platformPositions[platformIndex];
+            const randomX = (Math.random() - 0.5) * (GAME_CONFIG.platformWidth - 1);
+            const startZ = 30 + Math.random() * 20;
             
-            // Сохранение данных карточки
+            group.position.x = platformX + randomX;
+            group.position.y = GAME_CONFIG.platformHeight + 0.6;
+            group.position.z = startZ;
+            
+            // Поворот к игроку
+            group.lookAt(player.position);
+            
+            // Сохранение данных
             group.userData = {
                 type: 'card',
                 isNegative: isNegative,
@@ -864,66 +779,112 @@
                 abilityType: abilityType,
                 health: health,
                 maxHealth: health,
-                lane: laneIndex,
-                speed: GAME_CONFIG.cardSpeed * (0.8 + Math.random() * 0.4), // Случайная скорость
+                platform: platformIndex,
+                speed: GAME_CONFIG.cardSpeed * (0.8 + Math.random() * 0.4),
                 healthBar: healthBar,
-                text: text
+                initialZ: startZ
             };
             
             scene.add(group);
             cards.push(group);
-            
-            // Обновление UI
-            updateCardsUI();
         }
         
-        // Спавн начальных карточек
-        function spawnInitialCards() {
-            for (let i = 0; i < 5; i++) {
-                setTimeout(() => spawnCard(), i * 1000);
+        // Обновление карточек
+        function updateCards() {
+            for (let i = cards.length - 1; i >= 0; i--) {
+                const card = cards[i];
+                
+                // Движение к игроку
+                card.position.z -= card.userData.speed * gameState.difficulty;
+                
+                // Плавное покачивание
+                const time = Date.now() * 0.001;
+                card.position.y = GAME_CONFIG.platformHeight + 0.6 + Math.sin(time + i) * 0.1;
+                
+                // Медленное вращение
+                card.rotation.y = time * 0.5;
+                
+                // Всегда смотреть на игрока
+                card.lookAt(player.position);
+                
+                // Обновление полоски здоровья
+                if (card.userData.healthBar) {
+                    const healthPercent = Math.max(0, card.userData.health / card.userData.maxHealth);
+                    card.userData.healthBar.scale.x = healthPercent;
+                    
+                    // Изменение цвета
+                    if (healthPercent < 0.3) {
+                        card.userData.healthBar.material.color.setHex(0xff0000);
+                    } else if (healthPercent < 0.6) {
+                        card.userData.healthBar.material.color.setHex(0xffff00);
+                    }
+                }
+                
+                // Проверка столкновения с игроком
+                if (card.position.z < 5) {
+                    if (card.userData.isNegative) {
+                        // Урон
+                        gameState.health += card.userData.value;
+                        
+                        if (gameState.health <= 0) {
+                            gameState.health = 0;
+                            gameOver();
+                        }
+                    } else {
+                        // Если положительная карточка дошла до игрока - пропустить
+                        cards.splice(i, 1);
+                        scene.remove(card);
+                        continue;
+                    }
+                    
+                    updateUI();
+                    cards.splice(i, 1);
+                    scene.remove(card);
+                }
+                
+                // Удаление карточек, которые прошли мимо
+                if (card.position.z < -10) {
+                    cards.splice(i, 1);
+                    scene.remove(card);
+                }
             }
-        }
-        
-        // Спавн новой карточки
-        function spawnCard() {
-            if (cards.length < GAME_CONFIG.maxCards && !gameState.gameOver) {
+            
+            // Авто-спавн карточек
+            gameState.spawnTimer += 0.016; // Примерно 60 FPS
+            const spawnInterval = Math.max(0.5, 1.5 - gameState.difficulty * 0.1);
+            
+            if (gameState.spawnTimer >= spawnInterval && cards.length < GAME_CONFIG.maxCards) {
                 createCard();
+                gameState.spawnTimer = 0;
             }
         }
         
         // Стрельба
         function shoot() {
-            if (shootCooldown || gameState.gameOver) return;
+            if (shootCooldown || gameState.gameOver || !gameState.gameStarted) return;
+            
+            const fireRate = gameState.activeAbilities.rapidFire ? 
+                GAME_CONFIG.fireRate * 0.5 : GAME_CONFIG.fireRate;
             
             shootCooldown = true;
-            setTimeout(() => { shootCooldown = false; }, GAME_CONFIG.fireRate / gameState.fireRateMultiplier);
+            setTimeout(() => { shootCooldown = false; }, fireRate);
             
             // Основная пуля
-            createBullet(0, 0);
+            createBullet();
             
-            // Если активна способность двойных пуль
+            // Дополнительные пули из способностей
             if (gameState.activeAbilities.doubleBullets) {
-                setTimeout(() => createBullet(0.1, 0), 50);
+                setTimeout(() => createBullet(0.1), 50);
             }
             
-            // Если активна способность разброса
             if (gameState.activeAbilities.spreadShot) {
                 setTimeout(() => createBullet(0.2, 0.1), 100);
                 setTimeout(() => createBullet(-0.2, -0.1), 150);
             }
-            
-            // Стрельба других игроков
-            otherPlayers.forEach((playerObj, index) => {
-                if (playerObj.visible) {
-                    setTimeout(() => {
-                        createBullet(playerObj.position.x, playerObj.position.z, playerObj);
-                    }, (index + 1) * 100);
-                }
-            });
         }
         
         // Создание пули
-        function createBullet(offsetX = 0, offsetZ = 0, shooter = null) {
+        function createBullet(offsetX = 0, offsetY = 0) {
             const bulletGeometry = new THREE.SphereGeometry(0.05, 8, 8);
             const bulletMaterial = new THREE.MeshPhongMaterial({ 
                 color: 0xffff00,
@@ -932,37 +893,19 @@
             });
             const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
             
-            let startPosition;
-            if (shooter) {
-                // Пуля от другого игрока
-                startPosition = shooter.position.clone();
-                startPosition.y += 0.8;
-            } else {
-                // Пуля от основного игрока
-                startPosition = new THREE.Vector3(0, 0, 0);
-                
-                // Учитываем прицел
-                const direction = new THREE.Vector3();
-                const raycaster = new THREE.Raycaster();
-                raycaster.setFromCamera(new THREE.Vector2(mouse.x, mouse.y), camera);
-                
-                // Находим точку на расстоянии 50 единиц
-                const distance = 50;
-                direction.copy(raycaster.ray.direction).multiplyScalar(distance);
-                startPosition.add(direction);
-                startPosition.y = 0.8; // Высота оружия
-            }
-            
-            bullet.position.copy(startPosition);
+            // Начинаем от позиции игрока
+            bullet.position.copy(player.position);
+            bullet.position.y += 0.5 + offsetY;
             bullet.position.x += offsetX;
-            bullet.position.z += offsetZ;
             
-            // Направление вперед (от первого лица)
-            const direction = new THREE.Vector3(0, 0, 1);
+            // Направление взгляда камеры
+            const direction = new THREE.Vector3();
+            player.getWorldDirection(direction);
+            
             bullet.userData = {
                 direction: direction,
-                speed: GAME_CONFIG.bulletSpeed * gameState.fireRateMultiplier,
-                damage: gameState.bulletDamage
+                speed: GAME_CONFIG.bulletSpeed,
+                damage: 1
             };
             
             scene.add(bullet);
@@ -974,32 +917,18 @@
             for (let i = bullets.length - 1; i >= 0; i--) {
                 const bullet = bullets[i];
                 
-                // Движение пули
+                // Движение
                 bullet.position.x += bullet.userData.direction.x * bullet.userData.speed;
                 bullet.position.y += bullet.userData.direction.y * bullet.userData.speed;
                 bullet.position.z += bullet.userData.direction.z * bullet.userData.speed;
                 
-                // Проверка столкновения с карточками
+                // Проверка столкновений с карточками
                 for (let j = cards.length - 1; j >= 0; j--) {
                     const card = cards[j];
                     const distance = bullet.position.distanceTo(card.position);
                     
-                    if (distance < 1.5) {
-                        // Попадание в карточку
+                    if (distance < 1.0) {
                         card.userData.health -= bullet.userData.damage;
-                        
-                        // Обновление полоски здоровья
-                        if (card.userData.healthBar) {
-                            const healthPercent = Math.max(0, card.userData.health / card.userData.maxHealth);
-                            card.userData.healthBar.scale.x = healthPercent;
-                            
-                            // Изменение цвета при потере здоровья
-                            if (healthPercent < 0.3) {
-                                card.userData.healthBar.material.color.setHex(0xff0000);
-                            } else if (healthPercent < 0.6) {
-                                card.userData.healthBar.material.color.setHex(0xffff00);
-                            }
-                        }
                         
                         // Эффект попадания
                         createHitEffect(bullet.position);
@@ -1019,8 +948,10 @@
                     }
                 }
                 
-                // Удаление пуль, которые улетели слишком далеко
-                if (bullet.position.z > 100) {
+                // Удаление далеких пуль
+                if (bullet.position.z < -20 || bullet.position.z > 50 || 
+                    Math.abs(bullet.position.x) > 20 || 
+                    Math.abs(bullet.position.y) > 20) {
                     scene.remove(bullet);
                     bullets.splice(i, 1);
                 }
@@ -1029,7 +960,7 @@
         
         // Эффект попадания
         function createHitEffect(position) {
-            const geometry = new THREE.SphereGeometry(0.2, 8, 8);
+            const geometry = new THREE.SphereGeometry(0.1, 8, 8);
             const material = new THREE.MeshBasicMaterial({ 
                 color: 0xffff00,
                 transparent: true,
@@ -1039,12 +970,12 @@
             effect.position.copy(position);
             scene.add(effect);
             
-            // Анимация исчезновения
+            // Анимация
             let scale = 1;
             const animate = () => {
-                scale += 0.1;
+                scale += 0.2;
                 effect.scale.setScalar(scale);
-                material.opacity -= 0.05;
+                material.opacity -= 0.1;
                 
                 if (material.opacity > 0) {
                     requestAnimationFrame(animate);
@@ -1055,58 +986,14 @@
             animate();
         }
         
-        // Обновление карточек (движение к игроку)
-        function updateCards() {
-            for (let i = cards.length - 1; i >= 0; i--) {
-                const card = cards[i];
-                
-                // Движение к игроку
-                card.position.z -= card.userData.speed;
-                
-                // Легкое покачивание
-                card.position.y = 0.5 + Math.sin(Date.now() * 0.001 + i) * 0.1;
-                
-                // Поворот к игроку
-                card.lookAt(camera.position);
-                
-                // Проверка столкновения с игроком
-                if (card.position.z < 3) {
-                    if (card.userData.isNegative) {
-                        // Отрицательная карточка
-                        gameState.health += card.userData.value;
-                        gameState.negativeCardsHit++;
-                        
-                        if (gameState.health <= 0) {
-                            gameState.health = 0;
-                            gameOver();
-                        }
-                    } else {
-                        // Положительная карточка (не должна достигать игрока)
-                        // Если достигла - просто удаляем
-                        cards.splice(i, 1);
-                        scene.remove(card);
-                    }
-                    
-                    updateUI();
-                    updateCardsUI();
-                }
-                
-                // Удаление карточек, которые ушли далеко за игрока
-                if (card.position.z < -20) {
-                    cards.splice(i, 1);
-                    scene.remove(card);
-                }
-            }
-        }
-        
-        // Сбор карточки (при уничтожении стрельбой)
+        // Сбор карточки
         function collectCard(card) {
             gameState.cardsCollected++;
             
             if (card.userData.isNegative) {
                 gameState.score += Math.abs(card.userData.value) * 10;
+                gameState.difficulty += 0.02; // Постепенное увеличение сложности
             } else {
-                // Положительная карточка
                 gameState.positiveCardsCollected++;
                 gameState.score += card.userData.value * 100;
                 
@@ -1114,80 +1001,64 @@
                 applyAbility(card.userData.abilityType, card.userData.value);
                 
                 // Показ уведомления
-                showAbilityNotification(card.userData.abilityType, card.userData.value);
+                showAbilityNotification(card.userData.abilityType);
             }
             
             updateUI();
-            updateCardsUI();
         }
         
         // Применение способности
         function applyAbility(type, value) {
             switch(type) {
-                case 'health':
-                    gameState.health = Math.min(gameState.maxHealth, gameState.health + value);
-                    gameState.maxHealth += Math.floor(value / 2);
-                    break;
-                    
-                case 'fireRate':
-                    gameState.abilityProgress.fireRate += value;
-                    if (gameState.abilityProgress.fireRate >= 5) {
-                        gameState.fireRateMultiplier = Math.min(
-                            GAME_CONFIG.abilities.fireRate.max,
-                            gameState.fireRateMultiplier + GAME_CONFIG.abilities.fireRate.increment
-                        );
-                        gameState.abilityProgress.fireRate = 0;
-                    }
-                    break;
-                    
                 case 'doubleBullets':
                     gameState.abilityProgress.doubleBullets += value;
-                    if (gameState.abilityProgress.doubleBullets >= GAME_CONFIG.abilities.doubleBullets.cost) {
+                    if (gameState.abilityProgress.doubleBullets >= GAME_CONFIG.abilities.doubleBullets.required) {
                         gameState.activeAbilities.doubleBullets = true;
-                        abilityDouble.textContent = 'ДА';
+                        abilityDouble.classList.add('active');
+                        showAbilityNotification('Двойные пули активированы!');
                     }
                     break;
                     
                 case 'spreadShot':
                     gameState.abilityProgress.spreadShot += value;
-                    if (gameState.abilityProgress.spreadShot >= GAME_CONFIG.abilities.spreadShot.cost) {
+                    if (gameState.abilityProgress.spreadShot >= GAME_CONFIG.abilities.spreadShot.required) {
                         gameState.activeAbilities.spreadShot = true;
-                        abilitySpread.textContent = 'ДА';
+                        abilitySpread.classList.add('active');
+                        showAbilityNotification('Разброс пуль активирован!');
                     }
                     break;
                     
-                case 'extraPlayer':
-                    gameState.abilityProgress.extraPlayer += value;
-                    if (gameState.abilityProgress.extraPlayer >= GAME_CONFIG.abilities.extraPlayer.cost) {
-                        if (gameState.activeAbilities.extraPlayers < GAME_CONFIG.abilities.extraPlayer.max) {
-                            gameState.activeAbilities.extraPlayers++;
-                            gameState.abilityProgress.extraPlayer = 0;
-                        }
+                case 'rapidFire':
+                    gameState.abilityProgress.rapidFire += value;
+                    if (gameState.abilityProgress.rapidFire >= GAME_CONFIG.abilities.rapidFire.required) {
+                        gameState.activeAbilities.rapidFire = true;
+                        abilityRapid.classList.add('active');
+                        showAbilityNotification('Скорострельность увеличена!');
                     }
                     break;
             }
         }
         
-        // Показать уведомление о способности
-        function showAbilityNotification(type, value) {
+        // Показать уведомление
+        function showAbilityNotification(type) {
             let message = '';
             
-            switch(type) {
-                case 'health':
-                    message = `+${value} здоровья!`;
-                    break;
-                case 'fireRate':
-                    message = `Скорострельность +${value}`;
-                    break;
-                case 'doubleBullets':
-                    message = `Прогресс двойных пуль: ${gameState.abilityProgress.doubleBullets}/${GAME_CONFIG.abilities.doubleBullets.cost}`;
-                    break;
-                case 'spreadShot':
-                    message = `Прогресс разброса: ${gameState.abilityProgress.spreadShot}/${GAME_CONFIG.abilities.spreadShot.cost}`;
-                    break;
-                case 'extraPlayer':
-                    message = `Прогресс нового игрока: ${gameState.abilityProgress.extraPlayer}/${GAME_CONFIG.abilities.extraPlayer.cost}`;
-                    break;
+            if (typeof type === 'string') {
+                message = type;
+            } else {
+                const progress = {
+                    'doubleBullets': gameState.abilityProgress.doubleBullets,
+                    'spreadShot': gameState.abilityProgress.spreadShot,
+                    'rapidFire': gameState.abilityProgress.rapidFire
+                };
+                
+                const required = {
+                    'doubleBullets': GAME_CONFIG.abilities.doubleBullets.required,
+                    'spreadShot': GAME_CONFIG.abilities.spreadShot.required,
+                    'rapidFire': GAME_CONFIG.abilities.rapidFire.required
+                };
+                
+                message = `${type}: ${progress[type]}/${required[type]}`;
             }
             
             abilityNotification.textContent = message;
@@ -1208,88 +1079,62 @@
             // Счет
             scoreElement.textContent = gameState.score;
             
-            // Способности
-            abilityPlayers.textContent = gameState.players + gameState.activeAbilities.extraPlayers;
-            abilityFireRate.textContent = gameState.fireRateMultiplier.toFixed(1) + 'x';
-            
-            // Пули
-            bulletCounter.textContent = '∞';
-            
-            // Другие игроки
-            updateOtherPlayers();
+            // Индикатор платформы
+            const platformNames = ['Левая', 'Центральная', 'Правая'];
+            currentPlatform.textContent = platformNames[gameState.currentPlatform];
         }
         
-        // Обновление UI игроков
-        function updatePlayersUI() {
-            playersDisplay.innerHTML = '';
-            
-            // Основной игрок
-            const mainPlayer = document.createElement('div');
-            mainPlayer.className = 'player-icon';
-            mainPlayer.textContent = '1';
-            mainPlayer.style.background = '#00ff88';
-            playersDisplay.appendChild(mainPlayer);
-            
-            // Дополнительные игроки
-            for (let i = 0; i < gameState.activeAbilities.extraPlayers; i++) {
-                const extraPlayer = document.createElement('div');
-                extraPlayer.className = 'player-icon';
-                extraPlayer.textContent = (i + 2).toString();
-                extraPlayer.style.background = i === 0 ? '#0088ff' : '#ff8800';
-                playersDisplay.appendChild(extraPlayer);
-            }
-        }
-        
-        // Обновление UI карточек
-        function updateCardsUI() {
-            cardsListElement.innerHTML = '';
-            
-            // Сортируем карточки по расстоянию
-            const sortedCards = [...cards].sort((a, b) => a.position.z - b.position.z);
-            
-            // Показываем ближайшие 3 карточки
-            sortedCards.slice(0, 3).forEach(card => {
-                const cardElement = document.createElement('div');
-                cardElement.className = `card-info ${card.userData.isNegative ? 'card-negative' : 'card-positive'}`;
-                
-                const imageDiv = document.createElement('div');
-                imageDiv.className = 'card-image';
-                
-                if (card.userData.isNegative) {
-                    imageDiv.textContent = card.userData.value;
+        // Обновление свечения платформ
+        function updatePlatformGlow() {
+            platforms.forEach((platform, index) => {
+                const edge = platform.children[1];
+                if (index === gameState.currentPlatform) {
+                    edge.material.emissiveIntensity = 0.8;
+                    edge.material.color.setHex(0x00ffea);
                 } else {
-                    imageDiv.textContent = ABILITY_ICONS[card.userData.abilityType] || '?';
+                    edge.material.emissiveIntensity = 0.3;
+                    edge.material.color.setHex(0x0088ff);
                 }
-                
-                const infoDiv = document.createElement('div');
-                const abilityName = getAbilityName(card.userData.abilityType);
-                infoDiv.innerHTML = `
-                    <div>${card.userData.isNegative ? 'УРОН' : abilityName}</div>
-                    <div class="card-health">${Math.ceil(card.userData.health)} HP</div>
-                `;
-                
-                const valueDiv = document.createElement('div');
-                valueDiv.className = 'card-value';
-                valueDiv.textContent = card.userData.isNegative ? 
-                    card.userData.value : 
-                    `+${card.userData.value}`;
-                
-                cardElement.appendChild(imageDiv);
-                cardElement.appendChild(infoDiv);
-                cardElement.appendChild(valueDiv);
-                cardsListElement.appendChild(cardElement);
             });
         }
         
-        function getAbilityName(type) {
-            const names = {
-                'health': 'ЗДОРОВЬЕ',
-                'fireRate': 'СКОРОСТЬ',
-                'doubleBullets': 'ДВОЙНЫЕ',
-                'spreadShot': 'РАЗБРОС',
-                'extraPlayer': 'ИГРОК'
-            };
-            return names[type] || 'БОНУС';
+        // Перемещение между платформами
+        function moveToPlatform(targetPlatform) {
+            if (gameState.isMoving || gameState.gameOver || !gameState.gameStarted) return;
+            
+            // Проверка лимита на свайпы
+            const now = Date.now();
+            if (now - gameState.lastSwipeTime < 300) return; // 300ms cooldown
+            
+            gameState.lastSwipeTime = now;
+            gameState.isMoving = true;
+            gameState.currentPlatform = targetPlatform;
+            
+            // Анимация перемещения камеры
+            const startX = player.position.x;
+            const targetX = GAME_CONFIG.platformPositions[targetPlatform];
+            const duration = 300; // ms
+            
+            let startTime = null;
+            
+            function animateMove(timestamp) {
+                if (!startTime) startTime = timestamp;
+                const progress = Math.min((timestamp - startTime) / duration, 1);
+                
+                // Плавное движение с ease-out
+                const easeProgress = 1 - Math.pow(1 - progress, 3);
+                player.position.x = startX + (targetX - startX) * easeProgress;
+                
+                if (progress < 1) {
+                    requestAnimationFrame(animateMove);
+                } else {
+                    gameState.isMoving = false;
+                    updatePlatformGlow();
+                }
+            }
+            
+            requestAnimationFrame(animateMove);
+            updatePlatformGlow();
         }
         
         // Конец игры
@@ -1298,10 +1143,9 @@
             finalScoreElement.textContent = gameState.score;
             cardsCollectedElement.textContent = gameState.cardsCollected;
             
-            // Сохранение рекорда
             if (gameState.score > gameState.highScore) {
                 gameState.highScore = gameState.score;
-                localStorage.setItem('cardShooterHighScore', gameState.score);
+                localStorage.setItem('cardPlatformHighScore', gameState.score);
             }
             highScoreElement.textContent = gameState.highScore;
             
@@ -1310,49 +1154,51 @@
         
         // Игровой цикл
         function gameLoop() {
-            if (!gameState.gameOver) {
+            if (gameState.gameStarted && !gameState.gameOver) {
                 // Обновление карточек
                 updateCards();
                 
                 // Обновление пуль
                 updateBullets();
                 
-                // Обновление других игроков
-                updateOtherPlayers();
-                
-                // Авто-стрельба при удержании
+                // Авто-стрельба
                 if (isShooting) {
                     shoot();
                 }
                 
-                // Обновление отладочной информации
-                updateDebugInfo();
+                // Камера следует за движением платформы
+                if (!gameState.isMoving) {
+                    const targetX = GAME_CONFIG.platformPositions[gameState.currentPlatform];
+                    player.position.x += (targetX - player.position.x) * 0.1;
+                }
             }
             
             renderer.render(scene, camera);
             requestAnimationFrame(gameLoop);
         }
         
-        // Обновление отладочной информации
-        function updateDebugInfo() {
-            debugInfo.textContent = `
-                Карточек: ${cards.length}
-                Пуль: ${bullets.length}
-                Отрицательных попаданий: ${gameState.negativeCardsHit}
-                Положительных собрано: ${gameState.positiveCardsCollected}
-            `;
-        }
-        
         // Настройка управления
         function setupControls() {
             // Мышь - прицеливание
             document.addEventListener('mousemove', (e) => {
+                if (!gameState.gameStarted) return;
+                
+                // Обновление позиции прицела
                 mouse.x = (e.clientX / window.innerWidth) * 2 - 1;
                 mouse.y = -(e.clientY / window.innerHeight) * 2 + 1;
+                
+                // Вращение камеры по горизонтали
+                player.rotation.y = mouse.x * 0.5;
+                
+                // Вращение камеры по вертикали (с ограничениями)
+                const verticalRotation = mouse.y * 0.3;
+                player.rotation.x = Math.max(-0.5, Math.min(0.5, verticalRotation));
             });
             
             // Клик - стрельба
             document.addEventListener('mousedown', () => {
+                if (!gameState.gameStarted) return;
+                
                 isShooting = true;
                 shoot();
             });
@@ -1361,47 +1207,103 @@
                 isShooting = false;
             });
             
+            // Клавиатура - переключение платформ
+            document.addEventListener('keydown', (e) => {
+                if (!gameState.gameStarted) return;
+                
+                switch(e.key) {
+                    case 'ArrowLeft':
+                    case 'a':
+                        if (gameState.currentPlatform > 0) {
+                            moveToPlatform(gameState.currentPlatform - 1);
+                        }
+                        break;
+                    case 'ArrowRight':
+                    case 'd':
+                        if (gameState.currentPlatform < GAME_CONFIG.platforms - 1) {
+                            moveToPlatform(gameState.currentPlatform + 1);
+                        }
+                        break;
+                }
+            });
+            
             // Сенсорное управление
+            let touchStartX = 0;
+            let touchStartY = 0;
+            let touchStartTime = 0;
+            
             document.addEventListener('touchstart', (e) => {
                 e.preventDefault();
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+                touchStartTime = Date.now();
+                
+                // Стрельба при касании
                 isShooting = true;
                 shoot();
-                
-                // Определение позиции касания для прицеливания
-                if (e.touches[0]) {
-                    mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
-                    mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
-                }
             });
             
             document.addEventListener('touchmove', (e) => {
                 e.preventDefault();
-                if (e.touches[0]) {
-                    mouse.x = (e.touches[0].clientX / window.innerWidth) * 2 - 1;
-                    mouse.y = -(e.touches[0].clientY / window.innerHeight) * 2 + 1;
+                
+                if (!gameState.gameStarted) return;
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                // Управление камерой
+                const deltaX = touchX - touchStartX;
+                const deltaY = touchY - touchStartY;
+                
+                player.rotation.y = deltaX * 0.01;
+                player.rotation.x = Math.max(-0.5, Math.min(0.5, -deltaY * 0.01));
+                
+                touchStartX = touchX;
+                touchStartY = touchY;
+            });
+            
+            document.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                isShooting = false;
+                
+                // Определение свайпа
+                const touchEndX = e.changedTouches[0].clientX;
+                const touchEndY = e.changedTouches[0].clientY;
+                const touchEndTime = Date.now();
+                
+                const deltaX = touchEndX - touchStartX;
+                const deltaY = touchEndY - touchStartY;
+                const deltaTime = touchEndTime - touchStartTime;
+                
+                const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
+                const velocity = distance / deltaTime;
+                
+                // Если это быстрый горизонтальный свайп
+                if (velocity > 0.5 && Math.abs(deltaX) > Math.abs(deltaY) * 2) {
+                    if (deltaX > 50 && gameState.currentPlatform < GAME_CONFIG.platforms - 1) {
+                        moveToPlatform(gameState.currentPlatform + 1);
+                    } else if (deltaX < -50 && gameState.currentPlatform > 0) {
+                        moveToPlatform(gameState.currentPlatform - 1);
+                    }
                 }
             });
             
-            document.addEventListener('touchend', () => {
-                isShooting = false;
+            // Кнопка старта
+            startBtn.addEventListener('click', () => {
+                instructions.style.display = 'none';
+                gameState.gameStarted = true;
+                swipeHint.style.display = 'block';
+                
+                // Спавн начальных карточек
+                for (let i = 0; i < 8; i++) {
+                    setTimeout(() => createCard(), i * 300);
+                }
             });
             
-            // Кнопка стрельбы на мобильных
-            mobileFireBtn.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                isShooting = true;
-                shoot();
-            });
-            
-            mobileFireBtn.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                isShooting = false;
-            });
-            
-            // Рестарт игры
+            // Рестарт
             restartBtn.addEventListener('click', restartGame);
             
-            // Адаптация к размеру окна
+            // Изменение размера окна
             window.addEventListener('resize', () => {
                 camera.aspect = window.innerWidth / window.innerHeight;
                 camera.updateProjectionMatrix();
@@ -1418,27 +1320,32 @@
             gameState.score = 0;
             gameState.health = GAME_CONFIG.initialHealth;
             gameState.maxHealth = GAME_CONFIG.initialHealth;
-            gameState.players = 1;
-            gameState.fireRateMultiplier = 1.0;
-            gameState.bulletDamage = 1;
+            gameState.currentPlatform = 1;
+            gameState.isMoving = false;
             gameState.cardsCollected = 0;
             gameState.positiveCardsCollected = 0;
             gameState.gameOver = false;
-            gameState.negativeCardsHit = 0;
-            gameState.lastPositiveCard = 0;
+            gameState.gameStarted = true;
+            gameState.difficulty = 1.0;
+            gameState.spawnTimer = 0;
+            gameState.lastSwipeTime = 0;
             
             gameState.abilityProgress = {
-                extraPlayer: 0,
-                fireRate: 0,
                 doubleBullets: 0,
-                spreadShot: 0
+                spreadShot: 0,
+                rapidFire: 0
             };
             
             gameState.activeAbilities = {
                 doubleBullets: false,
                 spreadShot: false,
-                extraPlayers: 0
+                rapidFire: false
             };
+            
+            // Сброс UI способностей
+            abilityDouble.classList.remove('active');
+            abilitySpread.classList.remove('active');
+            abilityRapid.classList.remove('active');
             
             // Очистка сцены
             while(scene.children.length > 0) {
@@ -1448,17 +1355,42 @@
             // Очистка массивов
             bullets = [];
             cards = [];
-            otherPlayers = [];
+            platforms = [];
             
-            // Скрытие экрана окончания игры
+            // Скрытие экранов
             gameOverScreen.style.display = 'none';
-            
-            // Сброс UI
-            abilityDouble.textContent = 'НЕТ';
-            abilitySpread.textContent = 'НЕТ';
+            instructions.style.display = 'none';
+            swipeHint.style.display = 'block';
             
             // Переинициализация
-            init();
+            initGame();
+        }
+        
+        function initGame() {
+            // Освещение
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Создание платформ
+            createPlatforms();
+            
+            // Создание окружения
+            createEnvironment();
+            
+            // Создание игрока
+            createPlayer();
+            
+            // Спавн начальных карточек
+            for (let i = 0; i < 8; i++) {
+                setTimeout(() => createCard(), i * 300);
+            }
+            
+            updateUI();
         }
         
         // Запуск игры
