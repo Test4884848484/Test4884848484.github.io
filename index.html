@@ -3,845 +3,1049 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Параметры Игра</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>3D Карточный Бегун</title>
+    <script src="https://unpkg.com/three@0.132.2/build/three.min.js"></script>
+    <script src="https://unpkg.com/three@0.132.2/examples/js/controls/OrbitControls.js"></script>
     <style>
         * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
         }
         
         body {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000;
             color: white;
-            min-height: 100vh;
             overflow: hidden;
-            position: relative;
+            touch-action: none;
         }
         
-        .container {
-            max-width: 100%;
-            padding: 10px;
-        }
-        
-        .header {
-            text-align: center;
-            padding: 15px;
-            background: rgba(0, 0, 0, 0.5);
-            border-radius: 15px;
-            margin-bottom: 15px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            border: 2px solid #4cc9f0;
-        }
-        
-        .header h1 {
-            font-size: 1.8rem;
-            background: linear-gradient(90deg, #4cc9f0, #f72585);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-            margin-bottom: 5px;
-        }
-        
-        .score-container {
-            display: flex;
-            justify-content: space-around;
-            margin-top: 10px;
-        }
-        
-        .score-box {
-            background: rgba(0, 0, 0, 0.6);
-            padding: 10px 15px;
-            border-radius: 10px;
-            min-width: 100px;
-            text-align: center;
-            border: 1px solid;
-            transition: all 0.3s;
-        }
-        
-        #strength-box {
-            border-color: #ff6b6b;
-        }
-        
-        #agility-box {
-            border-color: #4ecdc4;
-        }
-        
-        #intelligence-box {
-            border-color: #ffe66d;
-        }
-        
-        .score-value {
-            font-size: 2rem;
-            font-weight: bold;
-        }
-        
-        .score-label {
-            font-size: 0.9rem;
-            opacity: 0.8;
-            margin-top: 5px;
-        }
-        
-        .game-area {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            margin-top: 10px;
-            position: relative;
-        }
-        
-        .panels-container {
-            display: flex;
-            justify-content: space-around;
-            width: 100%;
-            margin-bottom: 20px;
-            flex-wrap: wrap;
-        }
-        
-        .panel {
-            width: 30%;
-            min-width: 100px;
-            background: rgba(255, 255, 255, 0.1);
-            border-radius: 15px;
-            padding: 15px;
-            text-align: center;
-            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
-            backdrop-filter: blur(5px);
-            border: 2px solid;
-            transition: all 0.3s;
-            position: relative;
-            cursor: pointer;
-            margin-bottom: 10px;
-        }
-        
-        .panel:hover {
-            transform: translateY(-5px);
-        }
-        
-        .panel-1 {
-            border-color: #ff6b6b;
-        }
-        
-        .panel-2 {
-            border-color: #4ecdc4;
-        }
-        
-        .panel-3 {
-            border-color: #ffe66d;
-        }
-        
-        .panel-image {
-            width: 70px;
-            height: 70px;
-            margin: 0 auto 15px;
-            border-radius: 50%;
-            overflow: hidden;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2.5rem;
-            border: 3px solid;
-        }
-        
-        .panel-1 .panel-image {
-            background: rgba(255, 107, 107, 0.2);
-            border-color: #ff6b6b;
-        }
-        
-        .panel-2 .panel-image {
-            background: rgba(78, 205, 196, 0.2);
-            border-color: #4ecdc4;
-        }
-        
-        .panel-3 .panel-image {
-            background: rgba(255, 230, 109, 0.2);
-            border-color: #ffe66d;
-        }
-        
-        .panel-value {
-            font-size: 2.5rem;
-            font-weight: bold;
-            margin: 10px 0;
-            text-shadow: 0 2px 5px rgba(0, 0, 0, 0.5);
-        }
-        
-        .panel-label {
-            font-size: 1rem;
-            opacity: 0.9;
-        }
-        
-        .character-container {
-            width: 200px;
-            height: 300px;
-            position: relative;
-            margin: 20px auto;
-            perspective: 1000px;
-        }
-        
-        .character-3d {
+        #game-container {
+            position: fixed;
             width: 100%;
             height: 100%;
-            position: relative;
-            transform-style: preserve-3d;
-            transition: transform 0.5s;
+            top: 0;
+            left: 0;
         }
         
-        .character-body {
-            position: absolute;
-            width: 80px;
-            height: 120px;
-            background: linear-gradient(to bottom, #4361ee, #3a0ca3);
-            border-radius: 40px 40px 10px 10px;
-            top: 100px;
-            left: 60px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5);
-        }
-        
-        .character-head {
-            position: absolute;
-            width: 60px;
-            height: 60px;
-            background: linear-gradient(to bottom, #ffd6ff, #e7c6ff);
-            border-radius: 50%;
-            top: 40px;
-            left: 70px;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-        }
-        
-        .character-arm-left {
-            position: absolute;
-            width: 20px;
-            height: 80px;
-            background: linear-gradient(to bottom, #4361ee, #3a0ca3);
-            border-radius: 10px;
-            top: 110px;
-            left: 40px;
-            transform-origin: top center;
-            animation: waveArmLeft 2s infinite alternate;
-        }
-        
-        .character-arm-right {
-            position: absolute;
-            width: 20px;
-            height: 80px;
-            background: linear-gradient(to bottom, #4361ee, #3a0ca3);
-            border-radius: 10px;
-            top: 110px;
-            left: 140px;
-            transform-origin: top center;
-            animation: waveArmRight 2s infinite alternate-reverse;
-        }
-        
-        .character-leg-left {
-            position: absolute;
-            width: 25px;
-            height: 100px;
-            background: linear-gradient(to bottom, #7209b7, #560bad);
-            border-radius: 10px;
-            top: 220px;
-            left: 80px;
-        }
-        
-        .character-leg-right {
-            position: absolute;
-            width: 25px;
-            height: 100px;
-            background: linear-gradient(to bottom, #7209b7, #560bad);
-            border-radius: 10px;
-            top: 220px;
-            left: 95px;
-        }
-        
-        .weapon {
-            position: absolute;
-            width: 80px;
-            height: 10px;
-            background: #333;
-            border-radius: 5px;
-            top: 130px;
-            left: 160px;
-            transform: rotate(15deg);
+        #ui-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
             z-index: 10;
         }
         
-        .weapon::after {
-            content: '';
+        .stats-panel {
             position: absolute;
-            width: 30px;
-            height: 10px;
-            background: #666;
-            border-radius: 5px;
-            right: -30px;
+            top: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #00ff88;
+            pointer-events: auto;
+            min-width: 250px;
         }
         
-        .controls {
+        .stats-panel h3 {
+            color: #00ff88;
+            margin-bottom: 10px;
+            font-size: 18px;
+        }
+        
+        .stat-row {
             display: flex;
-            justify-content: center;
-            gap: 15px;
-            margin-top: 20px;
-            flex-wrap: wrap;
+            justify-content: space-between;
+            margin: 5px 0;
+            font-size: 16px;
         }
         
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 50px;
-            font-size: 1rem;
+        .stat-value {
+            color: #00ffea;
             font-weight: bold;
-            cursor: pointer;
-            transition: all 0.3s;
-            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
         }
         
-        .btn-shoot {
-            background: linear-gradient(90deg, #ff6b6b, #ff8e8e);
-            color: white;
-        }
-        
-        .btn-shoot:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(255, 107, 107, 0.7);
-        }
-        
-        .btn-upgrade {
-            background: linear-gradient(90deg, #4ecdc4, #6fffe0);
-            color: #1a1a2e;
-        }
-        
-        .btn-upgrade:hover {
-            transform: scale(1.05);
-            box-shadow: 0 0 15px rgba(78, 205, 196, 0.7);
-        }
-        
-        .bullet {
+        .controls-info {
             position: absolute;
-            width: 8px;
-            height: 8px;
-            background: yellow;
-            border-radius: 50%;
-            box-shadow: 0 0 10px yellow;
+            bottom: 20px;
+            left: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #ffaa00;
+            pointer-events: auto;
+            max-width: 300px;
+        }
+        
+        .controls-info h4 {
+            color: #ffaa00;
+            margin-bottom: 8px;
+        }
+        
+        .controls-info p {
+            font-size: 14px;
+            margin: 3px 0;
+        }
+        
+        .cards-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px;
+            border-radius: 10px;
+            border: 2px solid #ff5555;
+            pointer-events: auto;
+            min-width: 180px;
+        }
+        
+        .card-info {
+            margin: 8px 0;
+            padding: 8px;
+            border-radius: 5px;
+            text-align: center;
+            font-weight: bold;
+            font-size: 16px;
+        }
+        
+        .card-positive {
+            background: rgba(0, 100, 255, 0.3);
+            border: 1px solid #0088ff;
+        }
+        
+        .card-negative {
+            background: rgba(255, 50, 50, 0.3);
+            border: 1px solid #ff5555;
+        }
+        
+        .game-over {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
             z-index: 100;
             display: none;
         }
         
-        .hit-effect {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: radial-gradient(circle, rgba(255,255,0,0.8) 0%, rgba(255,255,0,0) 70%);
-            pointer-events: none;
-            display: none;
-            z-index: 90;
+        .game-over h1 {
+            color: #ff5555;
+            font-size: 48px;
+            margin-bottom: 20px;
         }
         
-        .stats {
-            background: rgba(0, 0, 0, 0.6);
-            border-radius: 15px;
-            padding: 15px;
-            margin-top: 20px;
-            width: 100%;
-            text-align: center;
-            border: 1px solid #4cc9f0;
+        .game-over p {
+            font-size: 24px;
+            margin: 10px 0;
+            color: #00ffea;
         }
         
-        .stats h3 {
-            margin-bottom: 10px;
-            color: #4cc9f0;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-        }
-        
-        .stat-item {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 10px;
-            border-radius: 10px;
-        }
-        
-        .stat-value {
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: #f72585;
-        }
-        
-        .upgrade-cost {
-            font-size: 0.8rem;
-            opacity: 0.8;
-            margin-top: 5px;
-        }
-        
-        .notification {
-            position: fixed;
-            top: 20px;
-            right: 20px;
-            background: rgba(0, 0, 0, 0.8);
+        .restart-btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 20px;
+            background: linear-gradient(45deg, #ff5555, #ffaa00);
+            border: none;
+            border-radius: 25px;
             color: white;
-            padding: 15px 20px;
-            border-radius: 10px;
-            border-left: 5px solid #4cc9f0;
-            transform: translateX(120%);
-            transition: transform 0.5s;
-            z-index: 1000;
-            max-width: 300px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.3s;
         }
         
-        .notification.show {
-            transform: translateX(0);
+        .restart-btn:hover {
+            transform: scale(1.05);
         }
         
-        @keyframes waveArmLeft {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(-30deg); }
+        .ability-notification {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 20px 30px;
+            border-radius: 15px;
+            border: 3px solid #00ff88;
+            font-size: 24px;
+            font-weight: bold;
+            color: #00ff88;
+            z-index: 50;
+            text-align: center;
+            display: none;
+            min-width: 300px;
         }
         
-        @keyframes waveArmRight {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(30deg); }
+        .mobile-controls {
+            position: fixed;
+            bottom: 100px;
+            width: 100%;
+            display: flex;
+            justify-content: space-around;
+            display: none;
+            pointer-events: auto;
         }
         
-        @keyframes shoot {
-            0% { transform: translateX(0) translateY(0); }
-            100% { transform: translateX(300px) translateY(var(--random-y)); }
+        .mobile-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.2);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 30px;
+            color: white;
+            border: 2px solid white;
+            user-select: none;
+        }
+        
+        .joystick-area {
+            position: fixed;
+            bottom: 100px;
+            left: 50px;
+            width: 120px;
+            height: 120px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            display: none;
+            pointer-events: auto;
+        }
+        
+        .joystick {
+            position: absolute;
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            top: 30px;
+            left: 30px;
         }
         
         @media (max-width: 768px) {
-            .panels-container {
-                flex-direction: column;
-                align-items: center;
+            .stats-panel, .cards-panel {
+                padding: 10px;
+                min-width: 150px;
+                font-size: 14px;
             }
             
-            .panel {
-                width: 90%;
-                margin-bottom: 15px;
+            .controls-info {
+                display: none;
             }
             
-            .controls {
-                flex-direction: column;
-                align-items: center;
+            .mobile-controls {
+                display: flex;
             }
             
-            .btn {
-                width: 90%;
-            }
-            
-            .character-container {
-                width: 150px;
-                height: 250px;
+            .joystick-area {
+                display: block;
             }
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>3D ПАРАМЕТРЫ СТРЕЛЯЛКА</h1>
-            <p>Стреляй в панели, улучшай параметры и качай персонажа!</p>
-            
-            <div class="score-container">
-                <div class="score-box" id="strength-box">
-                    <div class="score-value" id="strength-value">100</div>
-                    <div class="score-label">СИЛА</div>
-                </div>
-                <div class="score-box" id="agility-box">
-                    <div class="score-value" id="agility-value">100</div>
-                    <div class="score-label">ЛОВКОСТЬ</div>
-                </div>
-                <div class="score-box" id="intelligence-box">
-                    <div class="score-value" id="intelligence-value">100</div>
-                    <div class="score-label">ИНТЕЛЛЕКТ</div>
-                </div>
+    <div id="game-container"></div>
+    
+    <div id="ui-overlay">
+        <div class="stats-panel">
+            <h3>СТАТИСТИКА</h3>
+            <div class="stat-row">
+                <span>Очки:</span>
+                <span class="stat-value" id="score">0</span>
+            </div>
+            <div class="stat-row">
+                <span>Скорость:</span>
+                <span class="stat-value" id="speed">1.0x</span>
+            </div>
+            <div class="stat-row">
+                <span>Игроков:</span>
+                <span class="stat-value" id="players">1</span>
+            </div>
+            <div class="stat-row">
+                <span>Пули/сек:</span>
+                <span class="stat-value" id="fire-rate">2</span>
+            </div>
+            <div class="stat-row">
+                <span>Урон пули:</span>
+                <span class="stat-value" id="bullet-damage">1</span>
             </div>
         </div>
         
-        <div class="game-area">
-            <div class="panels-container">
-                <div class="panel panel-1" id="panel-1">
-                    <div class="panel-image">💪</div>
-                    <div class="panel-value" id="panel-1-value">-3</div>
-                    <div class="panel-label">СИЛА</div>
-                </div>
-                
-                <div class="panel panel-2" id="panel-2">
-                    <div class="panel-image">🏃</div>
-                    <div class="panel-value" id="panel-2-value">+100</div>
-                    <div class="panel-label">ЛОВКОСТЬ</div>
-                </div>
-                
-                <div class="panel panel-3" id="panel-3">
-                    <div class="panel-image">🧠</div>
-                    <div class="panel-value" id="panel-3-value">+200</div>
-                    <div class="panel-label">ИНТЕЛЛЕКТ</div>
-                </div>
-            </div>
-            
-            <div class="character-container">
-                <div class="character-3d" id="character-3d">
-                    <div class="character-head"></div>
-                    <div class="character-body"></div>
-                    <div class="character-arm-left"></div>
-                    <div class="character-arm-right"></div>
-                    <div class="character-leg-left"></div>
-                    <div class="character-leg-right"></div>
-                    <div class="weapon"></div>
-                </div>
-            </div>
-            
-            <div class="bullet" id="bullet"></div>
-            
-            <div class="controls">
-                <button class="btn btn-shoot" id="shoot-btn">
-                    <span>🔫</span> СТРЕЛЯТЬ В ПАНЕЛИ
-                </button>
-                <button class="btn btn-upgrade" id="upgrade-btn">
-                    <span>⚡</span> УЛУЧШИТЬ ОРУЖИЕ (50 очков)
-                </button>
-            </div>
-            
-            <div class="stats">
-                <h3>СТАТИСТИКА ИГРЫ</h3>
-                <div class="stats-grid">
-                    <div class="stat-item">
-                        <div>Выстрелы</div>
-                        <div class="stat-value" id="shots-count">0</div>
-                    </div>
-                    <div class="stat-item">
-                        <div>Попадания</div>
-                        <div class="stat-value" id="hits-count">0</div>
-                    </div>
-                    <div class="stat-item">
-                        <div>Уровень оружия</div>
-                        <div class="stat-value" id="weapon-level">1</div>
-                        <div class="upgrade-cost" id="upgrade-cost">Следующий: 50</div>
-                    </div>
-                </div>
-            </div>
+        <div class="cards-panel">
+            <h3>БЛИЖАЙШИЕ КАРТОЧКИ</h3>
+            <div id="cards-list"></div>
+        </div>
+        
+        <div class="controls-info">
+            <h4>УПРАВЛЕНИЕ</h4>
+            <p>PC: WASD/Стрелки - движение</p>
+            <p>Мышь - выбор цели</p>
+            <p>Телефон: Смахивание/Джойстик</p>
+            <p>Касание карточки - выбор</p>
+            <p>Авто-стрельба по ближайшей цели</p>
+        </div>
+        
+        <div class="mobile-controls">
+            <div class="mobile-btn" id="btn-left">←</div>
+            <div class="mobile-btn" id="btn-right">→</div>
+            <div class="mobile-btn" id="btn-up">↑</div>
+            <div class="mobile-btn" id="btn-down">↓</div>
+        </div>
+        
+        <div class="joystick-area">
+            <div class="joystick" id="joystick"></div>
         </div>
     </div>
     
-    <div class="notification" id="notification">
-        <div id="notification-text">Тестовое уведомление</div>
+    <div class="game-over" id="game-over">
+        <h1>ИГРА ОКОНЧЕНА</h1>
+        <p>Ваш счет: <span id="final-score">0</span></p>
+        <p>Собрано карточек: <span id="cards-collected">0</span></p>
+        <button class="restart-btn" id="restart-btn">ИГРАТЬ СНОВА</button>
+    </div>
+    
+    <div class="ability-notification" id="ability-notification">
+        Получена новая способность!
     </div>
 
     <script>
-        // Инициализация Telegram Web App
-        let tg = window.Telegram.WebApp;
-        tg.expand();
-        tg.MainButton.setText("МЕНЮ ИГРЫ").show();
-        
-        // Игровые переменные
-        let gameState = {
-            strength: 100,
-            agility: 100,
-            intelligence: 100,
-            shots: 0,
-            hits: 0,
-            weaponLevel: 1,
-            upgradeCost: 50,
-            points: 0,
-            panelValues: {
-                panel1: -3,
-                panel2: 100,
-                panel3: 200
+        // Основные константы игры
+        const GAME_CONFIG = {
+            playerSpeed: 0.1,
+            bulletSpeed: 0.3,
+            fireRate: 500, // мс между выстрелами
+            laneCount: 3,
+            laneWidth: 4,
+            cardSpawnDistance: 30,
+            maxCardsPerLane: 2,
+            initialHealth: 100,
+            cardValues: {
+                negative: [-50, -40, -30, -25, -20, -15, -10, -5],
+                positive: [10, 15, 20, 25, 30, 40, 50] // Хотя ты просил только отрицательные, оставлю на случай балансировки
             }
         };
-        
-        // Элементы DOM
-        const strengthValue = document.getElementById('strength-value');
-        const agilityValue = document.getElementById('agility-value');
-        const intelligenceValue = document.getElementById('intelligence-value');
-        const panel1Value = document.getElementById('panel-1-value');
-        const panel2Value = document.getElementById('panel-2-value');
-        const panel3Value = document.getElementById('panel-3-value');
-        const shotsCount = document.getElementById('shots-count');
-        const hitsCount = document.getElementById('hits-count');
-        const weaponLevel = document.getElementById('weapon-level');
-        const upgradeCost = document.getElementById('upgrade-cost');
-        const shootBtn = document.getElementById('shoot-btn');
-        const upgradeBtn = document.getElementById('upgrade-btn');
-        const bullet = document.getElementById('bullet');
-        const character3d = document.getElementById('character-3d');
-        const notification = document.getElementById('notification');
-        const notificationText = document.getElementById('notification-text');
-        const panels = document.querySelectorAll('.panel');
-        
-        // Инициализация значений
-        function initGame() {
-            updateUI();
-            generateNewPanelValues();
-            
-            // Загрузка сохраненного состояния
-            const savedState = localStorage.getItem('3dParamsGameState');
-            if (savedState) {
-                const parsedState = JSON.parse(savedState);
-                gameState = {...gameState, ...parsedState};
-                updateUI();
+
+        // Игровое состояние
+        const gameState = {
+            score: 0,
+            health: GAME_CONFIG.initialHealth,
+            players: 1,
+            fireRateMultiplier: 1,
+            bulletDamage: 1,
+            speedMultiplier: 1,
+            cardsCollected: 0,
+            gameOver: false,
+            abilities: {
+                doubleBullets: false,
+                spreadShot: false,
+                rapidFire: false,
+                extraPlayers: 0
             }
+        };
+
+        // Три основные полосы (дорожки)
+        const lanes = [];
+        let scene, camera, renderer, controls;
+        let player, bullets = [];
+        let cards = [];
+        let otherPlayers = [];
+        
+        // Элементы UI
+        const scoreElement = document.getElementById('score');
+        const speedElement = document.getElementById('speed');
+        const playersElement = document.getElementById('players');
+        const fireRateElement = document.getElementById('fire-rate');
+        const bulletDamageElement = document.getElementById('bullet-damage');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreElement = document.getElementById('final-score');
+        const cardsCollectedElement = document.getElementById('cards-collected');
+        const restartBtn = document.getElementById('restart-btn');
+        const abilityNotification = document.getElementById('ability-notification');
+        const cardsListElement = document.getElementById('cards-list');
+        
+        // Управление
+        const keys = {};
+        let touchStartX = 0;
+        let touchStartY = 0;
+        let joystickActive = false;
+        let joystickDirection = { x: 0, y: 0 };
+        let targetLane = 1; // Центральная полоса (0, 1, 2)
+
+        // Инициализация игры
+        function init() {
+            // Создание сцены
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x111122);
             
-            // Обновление стоимости улучшения
-            upgradeCost.textContent = `Следующий: ${gameState.upgradeCost}`;
-            upgradeBtn.innerHTML = `<span>⚡</span> УЛУЧШИТЬ ОРУЖИЕ (${gameState.upgradeCost} очков)`;
+            // Добавление тумана для глубины
+            scene.fog = new THREE.Fog(0x111122, 10, 100);
+            
+            // Создание камеры
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.set(0, 15, 20);
+            camera.lookAt(0, 0, 0);
+            
+            // Создание рендерера
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.shadowMap.enabled = true;
+            document.getElementById('game-container').appendChild(renderer.domElement);
+            
+            // Добавление освещения
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
+            scene.add(ambientLight);
+            
+            const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
+            directionalLight.position.set(10, 20, 5);
+            directionalLight.castShadow = true;
+            scene.add(directionalLight);
+            
+            // Создание полос
+            createLanes();
+            
+            // Создание игрока
+            createPlayer();
+            
+            // Создание других игроков (пока неактивны)
+            createOtherPlayers();
+            
+            // Создание начальных карточек
+            spawnInitialCards();
+            
+            // Настройка элементов управления
+            setupControls();
+            
+            // Начало игрового цикла
+            gameLoop();
+            
+            // Авто-спавн карточек
+            setInterval(spawnCards, 3000);
+            
+            // Авто-стрельба
+            setInterval(autoShoot, GAME_CONFIG.fireRate / gameState.fireRateMultiplier);
         }
         
-        // Обновление интерфейса
-        function updateUI() {
-            strengthValue.textContent = gameState.strength;
-            agilityValue.textContent = gameState.agility;
-            intelligenceValue.textContent = gameState.intelligence;
+        // Создание полос (дорожек)
+        function createLanes() {
+            const laneGeometry = new THREE.PlaneGeometry(GAME_CONFIG.laneWidth, 1000);
+            const laneMaterials = [
+                new THREE.MeshPhongMaterial({ color: 0x333333, side: THREE.DoubleSide }), // Левая
+                new THREE.MeshPhongMaterial({ color: 0x444444, side: THREE.DoubleSide }), // Центральная
+                new THREE.MeshPhongMaterial({ color: 0x333333, side: THREE.DoubleSide })  // Правая
+            ];
             
-            shotsCount.textContent = gameState.shots;
-            hitsCount.textContent = gameState.hits;
-            weaponLevel.textContent = gameState.weaponLevel;
-            
-            // Обновление внешнего вида персонажа в зависимости от параметров
-            updateCharacterAppearance();
-            
-            // Сохранение состояния игры
-            localStorage.setItem('3dParamsGameState', JSON.stringify(gameState));
+            for (let i = 0; i < GAME_CONFIG.laneCount; i++) {
+                const lane = new THREE.Mesh(laneGeometry, laneMaterials[i]);
+                lane.rotation.x = -Math.PI / 2;
+                lane.position.x = (i - 1) * GAME_CONFIG.laneWidth;
+                lane.position.y = -0.5;
+                lane.receiveShadow = true;
+                scene.add(lane);
+                lanes.push(lane);
+                
+                // Добавление границ полос
+                const borderGeometry = new THREE.BoxGeometry(0.2, 1, 1000);
+                const borderMaterial = new THREE.MeshPhongMaterial({ color: 0x666666 });
+                
+                const leftBorder = new THREE.Mesh(borderGeometry, borderMaterial);
+                leftBorder.position.x = (i - 1) * GAME_CONFIG.laneWidth - GAME_CONFIG.laneWidth / 2 - 0.1;
+                leftBorder.position.y = 0;
+                scene.add(leftBorder);
+                
+                const rightBorder = new THREE.Mesh(borderGeometry, borderMaterial);
+                rightBorder.position.x = (i - 1) * GAME_CONFIG.laneWidth + GAME_CONFIG.laneWidth / 2 + 0.1;
+                rightBorder.position.y = 0;
+                scene.add(rightBorder);
+            }
         }
         
-        // Генерация новых значений для панелей
-        function generateNewPanelValues() {
-            // Генерация случайных значений для каждой панели
-            gameState.panelValues.panel1 = getRandomPanelValue();
-            gameState.panelValues.panel2 = getRandomPanelValue();
-            gameState.panelValues.panel3 = getRandomPanelValue();
+        // Создание игрока
+        function createPlayer() {
+            const group = new THREE.Group();
             
-            // Обновление отображения значений
-            panel1Value.textContent = formatPanelValue(gameState.panelValues.panel1);
-            panel2Value.textContent = formatPanelValue(gameState.panelValues.panel2);
-            panel3Value.textContent = formatPanelValue(gameState.panelValues.panel3);
+            // Тело игрока
+            const bodyGeometry = new THREE.CylinderGeometry(0.3, 0.3, 1.2, 8);
+            const bodyMaterial = new THREE.MeshPhongMaterial({ color: 0x00ff88 });
+            const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+            body.position.y = 0.6;
+            body.castShadow = true;
+            group.add(body);
+            
+            // Голова
+            const headGeometry = new THREE.SphereGeometry(0.4, 8, 8);
+            const headMaterial = new THREE.MeshPhongMaterial({ color: 0xffaa88 });
+            const head = new THREE.Mesh(headGeometry, headMaterial);
+            head.position.y = 1.5;
+            head.castShadow = true;
+            group.add(head);
+            
+            // Оружие (пистолет)
+            const gunGroup = new THREE.Group();
+            const gunBodyGeometry = new THREE.BoxGeometry(0.8, 0.2, 0.2);
+            const gunBodyMaterial = new THREE.MeshPhongMaterial({ color: 0x333333 });
+            const gunBody = new THREE.Mesh(gunBodyGeometry, gunBodyMaterial);
+            gunBody.position.x = 0.5;
+            gunGroup.add(gunBody);
+            
+            const gunBarrelGeometry = new THREE.CylinderGeometry(0.05, 0.05, 0.4, 8);
+            const gunBarrel = new THREE.Mesh(gunBarrelGeometry, gunBodyMaterial);
+            gunBarrel.position.x = 0.9;
+            gunBarrel.rotation.z = Math.PI / 2;
+            gunGroup.add(gunBarrel);
+            
+            gunGroup.position.set(0, 0.8, 0);
+            group.add(gunGroup);
+            
+            group.position.z = -10;
+            scene.add(group);
+            player = group;
         }
         
-        // Получение случайного значения для панели
-        function getRandomPanelValue() {
-            const values = [-10, -5, -3, -2, -1, 1, 2, 5, 10, 20, 50, 100, 200];
-            const weights = [3, 4, 5, 6, 8, 10, 12, 15, 10, 8, 6, 4, 2];
+        // Создание других игроков
+        function createOtherPlayers() {
+            for (let i = 0; i < 2; i++) { // Максимум 2 дополнительных игрока
+                const group = new THREE.Group();
+                
+                const bodyGeometry = new THREE.CylinderGeometry(0.25, 0.25, 1, 8);
+                const bodyMaterial = new THREE.MeshPhongMaterial({ color: i === 0 ? 0x0088ff : 0xff8800 });
+                const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+                body.position.y = 0.5;
+                group.add(body);
+                
+                const headGeometry = new THREE.SphereGeometry(0.3, 8, 8);
+                const headMaterial = new THREE.MeshPhongMaterial({ color: 0xffaa88 });
+                const head = new THREE.Mesh(headGeometry, headMaterial);
+                head.position.y = 1.2;
+                group.add(head);
+                
+                group.visible = false;
+                scene.add(group);
+                otherPlayers.push(group);
+            }
+        }
+        
+        // Обновление других игроков
+        function updateOtherPlayers() {
+            const activePlayers = Math.min(gameState.players - 1, otherPlayers.length);
             
-            let totalWeight = weights.reduce((a, b) => a + b, 0);
-            let random = Math.random() * totalWeight;
-            
-            for (let i = 0; i < values.length; i++) {
-                random -= weights[i];
-                if (random <= 0) {
-                    return values[i];
+            for (let i = 0; i < otherPlayers.length; i++) {
+                if (i < activePlayers) {
+                    otherPlayers[i].visible = true;
+                    // Позиционирование других игроков вокруг основного
+                    const angle = (i + 1) * Math.PI / 3;
+                    otherPlayers[i].position.x = player.position.x + Math.cos(angle) * 2;
+                    otherPlayers[i].position.z = player.position.z + Math.sin(angle) * 2;
+                    otherPlayers[i].position.y = 0;
+                } else {
+                    otherPlayers[i].visible = false;
                 }
             }
-            
-            return 10; // fallback
         }
         
-        // Форматирование значения панели
-        function formatPanelValue(value) {
-            return value > 0 ? `+${value}` : value;
-        }
-        
-        // Обновление внешнего вида персонажа
-        function updateCharacterAppearance() {
-            // Масштабирование персонажа в зависимости от силы
-            const strengthScale = 1 + (gameState.strength - 100) / 500;
-            character3d.style.transform = `scale(${strengthScale})`;
+        // Создание карточки
+        function createCard(laneIndex, zPosition) {
+            const isNegative = Math.random() > 0.3; // 70% отрицательных карточек
+            const value = isNegative ? 
+                GAME_CONFIG.cardValues.negative[Math.floor(Math.random() * GAME_CONFIG.cardValues.negative.length)] :
+                GAME_CONFIG.cardValues.positive[Math.floor(Math.random() * GAME_CONFIG.cardValues.positive.length)];
             
-            // Цвет оружия в зависимости от уровня
-            const weapon = document.querySelector('.weapon');
-            if (gameState.weaponLevel >= 5) {
-                weapon.style.background = 'linear-gradient(90deg, #ffd700, #ffaa00)';
-            } else if (gameState.weaponLevel >= 3) {
-                weapon.style.background = 'linear-gradient(90deg, #c0c0c0, #a0a0a0)';
-            }
+            const group = new THREE.Group();
             
-            // Анимация скорости в зависимости от ловкости
-            const arms = document.querySelectorAll('.character-arm-left, .character-arm-right');
-            arms.forEach(arm => {
-                const speed = 2 - (gameState.agility - 100) / 500;
-                arm.style.animationDuration = `${speed}s`;
+            // Основа карточки
+            const cardGeometry = new THREE.BoxGeometry(1.5, 0.1, 2);
+            const cardMaterial = new THREE.MeshPhongMaterial({ 
+                color: isNegative ? 0xff5555 : 0x0088ff,
+                emissive: isNegative ? 0x440000 : 0x001144,
+                emissiveIntensity: 0.3
             });
+            const card = new THREE.Mesh(cardGeometry, cardMaterial);
+            card.castShadow = true;
+            group.add(card);
+            
+            // Текст значения
+            const canvas = document.createElement('canvas');
+            canvas.width = 256;
+            canvas.height = 128;
+            const context = canvas.getContext('2d');
+            context.fillStyle = isNegative ? '#ff5555' : '#0088ff';
+            context.fillRect(0, 0, canvas.width, canvas.height);
+            context.fillStyle = 'white';
+            context.font = 'bold 60px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(value > 0 ? `+${value}` : value.toString(), canvas.width / 2, canvas.height / 2);
+            
+            const texture = new THREE.CanvasTexture(canvas);
+            const textGeometry = new THREE.PlaneGeometry(1, 0.5);
+            const textMaterial = new THREE.MeshBasicMaterial({ 
+                map: texture,
+                transparent: true,
+                side: THREE.DoubleSide
+            });
+            const text = new THREE.Mesh(textGeometry, textMaterial);
+            text.position.z = 0.06;
+            text.rotation.x = Math.PI / 2;
+            group.add(text);
+            
+            // Позиционирование
+            group.position.x = (laneIndex - 1) * GAME_CONFIG.laneWidth;
+            group.position.y = 0.5;
+            group.position.z = zPosition;
+            group.rotation.x = -Math.PI / 2;
+            
+            // Сохранение данных карточки
+            group.userData = {
+                type: 'card',
+                value: value,
+                lane: laneIndex,
+                isNegative: isNegative,
+                health: Math.abs(value) // Карточка имеет "здоровье" равное её значению
+            };
+            
+            scene.add(group);
+            cards.push(group);
+            
+            updateCardsUI();
         }
         
-        // Стрельба по панелям
-        function shootAtPanel(panelIndex) {
-            gameState.shots++;
-            
-            // Определение цели
-            let targetPanel;
-            let panelValue;
-            
-            switch(panelIndex) {
-                case 1:
-                    targetPanel = document.getElementById('panel-1');
-                    panelValue = gameState.panelValues.panel1;
-                    break;
-                case 2:
-                    targetPanel = document.getElementById('panel-2');
-                    panelValue = gameState.panelValues.panel2;
-                    break;
-                case 3:
-                    targetPanel = document.getElementById('panel-3');
-                    panelValue = gameState.panelValues.panel3;
-                    break;
-            }
-            
-            // Анимация выстрела
-            animateBullet(targetPanel, panelIndex);
-            
-            // Увеличение параметров в зависимости от значения панели
-            setTimeout(() => {
-                applyPanelEffect(panelIndex, panelValue);
-                gameState.hits++;
-                updateUI();
-                
-                // Показ уведомления
-                showNotification(`Попадание! Получено: ${formatPanelValue(panelValue)}`, panelIndex);
-                
-                // Генерация новых значений для всех панелей
-                generateNewPanelValues();
-                
-                // Увеличение очков
-                gameState.points += Math.abs(panelValue);
-                
-            }, 600);
-        }
-        
-        // Анимация пули
-        function animateBullet(targetPanel, panelIndex) {
-            const characterRect = character3d.getBoundingClientRect();
-            const panelRect = targetPanel.getBoundingClientRect();
-            
-            // Позиция пули
-            const startX = characterRect.left + characterRect.width;
-            const startY = characterRect.top + characterRect.height / 2;
-            
-            const endX = panelRect.left + panelRect.width / 2;
-            const endY = panelRect.top + panelRect.height / 2;
-            
-            // Установка начальной позиции
-            bullet.style.left = `${startX}px`;
-            bullet.style.top = `${startY}px`;
-            bullet.style.display = 'block';
-            
-            // Расчет траектории
-            const deltaX = endX - startX;
-            const deltaY = endY - startY;
-            const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY);
-            
-            // Анимация
-            bullet.style.transition = `transform 0.5s linear`;
-            bullet.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
-            
-            // Скрытие пули после анимации
-            setTimeout(() => {
-                bullet.style.display = 'none';
-                bullet.style.transform = 'translate(0, 0)';
-            }, 500);
-        }
-        
-        // Применение эффекта панели
-        function applyPanelEffect(panelIndex, value) {
-            switch(panelIndex) {
-                case 1: // Сила
-                    gameState.strength += value;
-                    if (gameState.strength < 1) gameState.strength = 1;
-                    break;
-                case 2: // Ловкость
-                    gameState.agility += value;
-                    if (gameState.agility < 1) gameState.agility = 1;
-                    break;
-                case 3: // Интеллект
-                    gameState.intelligence += value;
-                    if (gameState.intelligence < 1) gameState.intelligence = 1;
-                    break;
+        // Спавн начальных карточек
+        function spawnInitialCards() {
+            for (let lane = 0; lane < GAME_CONFIG.laneCount; lane++) {
+                for (let i = 0; i < 2; i++) {
+                    createCard(lane, i * 10 + 20);
+                }
             }
         }
         
-        // Улучшение оружия
-        function upgradeWeapon() {
-            if (gameState.points >= gameState.upgradeCost) {
-                gameState.points -= gameState.upgradeCost;
-                gameState.weaponLevel++;
+        // Спавн новых карточек
+        function spawnCards() {
+            if (gameState.gameOver) return;
+            
+            // Удаление карточек, которые далеко позади
+            cards = cards.filter(card => {
+                if (card.position.z < player.position.z - 20) {
+                    scene.remove(card);
+                    return false;
+                }
+                return true;
+            });
+            
+            // Проверка количества карточек на каждой полосе
+            const cardsPerLane = [0, 0, 0];
+            cards.forEach(card => {
+                cardsPerLane[card.userData.lane]++;
+            });
+            
+            // Спавн новых карточек на пустых полосах
+            for (let lane = 0; lane < GAME_CONFIG.laneCount; lane++) {
+                if (cardsPerLane[lane] < GAME_CONFIG.maxCardsPerLane) {
+                    const zPosition = player.position.z + GAME_CONFIG.cardSpawnDistance + Math.random() * 20;
+                    createCard(lane, zPosition);
+                }
+            }
+        }
+        
+        // Автоматическая стрельба
+        function autoShoot() {
+            if (gameState.gameOver) return;
+            
+            // Поиск ближайшей карточки на текущей полосе
+            let nearestCard = null;
+            let minDistance = Infinity;
+            
+            cards.forEach(card => {
+                if (card.userData.lane === targetLane) {
+                    const distance = card.position.z - player.position.z;
+                    if (distance > 0 && distance < minDistance && distance < 30) {
+                        minDistance = distance;
+                        nearestCard = card;
+                    }
+                }
+            });
+            
+            if (nearestCard) {
+                shootAtCard(nearestCard);
                 
-                // Увеличение стоимости следующего улучшения
-                gameState.upgradeCost = Math.floor(gameState.upgradeCost * 1.5);
+                // Если есть способность разброса, стреляем и по соседним карточкам
+                if (gameState.abilities.spreadShot) {
+                    cards.forEach(card => {
+                        if (card !== nearestCard && 
+                            Math.abs(card.position.z - nearestCard.position.z) < 5 &&
+                            Math.abs(card.userData.lane - nearestCard.userData.lane) <= 1) {
+                            setTimeout(() => shootAtCard(card), 100);
+                        }
+                    });
+                }
+            }
+        }
+        
+        // Выстрел по карточке
+        function shootAtCard(card) {
+            // Создание пули
+            const bulletGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const bulletMaterial = new THREE.MeshPhongMaterial({ 
+                color: 0xffff00,
+                emissive: 0xffff00,
+                emissiveIntensity: 0.5
+            });
+            const bullet = new THREE.Mesh(bulletGeometry, bulletMaterial);
+            
+            // Позиция выстрела (из оружия игрока)
+            bullet.position.copy(player.position);
+            bullet.position.y += 0.8;
+            bullet.position.x += 0.5;
+            
+            // Направление к карточке
+            const direction = new THREE.Vector3(
+                card.position.x - bullet.position.x,
+                card.position.y - bullet.position.y,
+                card.position.z - bullet.position.z
+            ).normalize();
+            
+            bullet.userData = {
+                direction: direction,
+                speed: GAME_CONFIG.bulletSpeed * gameState.speedMultiplier,
+                damage: gameState.bulletDamage,
+                target: card
+            };
+            
+            scene.add(bullet);
+            bullets.push(bullet);
+            
+            // Если есть способность двойных пуль, создаем вторую пулю
+            if (gameState.abilities.doubleBullets) {
+                setTimeout(() => {
+                    const bullet2 = new THREE.Mesh(bulletGeometry, bulletMaterial);
+                    bullet2.position.copy(player.position);
+                    bullet2.position.y += 0.8;
+                    bullet2.position.x += 0.5;
+                    
+                    // Немного другое направление для разнообразия
+                    const direction2 = direction.clone();
+                    direction2.x += (Math.random() - 0.5) * 0.2;
+                    direction2.z += (Math.random() - 0.5) * 0.2;
+                    direction2.normalize();
+                    
+                    bullet2.userData = {
+                        direction: direction2,
+                        speed: GAME_CONFIG.bulletSpeed * gameState.speedMultiplier,
+                        damage: gameState.bulletDamage,
+                        target: card
+                    };
+                    
+                    scene.add(bullet2);
+                    bullets.push(bullet2);
+                }, 50);
+            }
+        }
+        
+        // Обновление пуль
+        function updateBullets() {
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const bullet = bullets[i];
                 
-                // Обновление кнопки улучшения
-                upgradeBtn.innerHTML = `<span>⚡</span> УЛУЧШИТЬ ОРУЖИЕ (${gameState.upgradeCost} очков)`;
-                upgradeCost.textContent = `Следующий: ${gameState.upgradeCost}`;
+                // Движение пули
+                bullet.position.x += bullet.userData.direction.x * bullet.userData.speed;
+                bullet.position.y += bullet.userData.direction.y * bullet.userData.speed;
+                bullet.position.z += bullet.userData.direction.z * bullet.userData.speed;
                 
-                // Показ уведомления
-                showNotification(`Оружие улучшено до уровня ${gameState.weaponLevel}!`, 'upgrade');
+                // Проверка столкновения с карточкой
+                const target = bullet.userData.target;
+                if (target && bullet.position.distanceTo(target.position) < 2) {
+                    // Нанесение урона карточке
+                    target.userData.health -= bullet.userData.damage;
+                    
+                    // Удаление пули
+                    scene.remove(bullet);
+                    bullets.splice(i, 1);
+                    
+                    // Если здоровье карточки <= 0, она уничтожена
+                    if (target.userData.health <= 0) {
+                        collectCard(target);
+                        cards.splice(cards.indexOf(target), 1);
+                        scene.remove(target);
+                    }
+                    
+                    continue;
+                }
                 
-                updateUI();
+                // Удаление пуль, которые улетели слишком далеко
+                if (bullet.position.z > player.position.z + 50 || 
+                    bullet.position.y < -10) {
+                    scene.remove(bullet);
+                    bullets.splice(i, 1);
+                }
+            }
+        }
+        
+        // Сбор карточки
+        function collectCard(card) {
+            gameState.cardsCollected++;
+            
+            if (card.userData.isNegative) {
+                // Отрицательная карточка - наносит урон
+                gameState.health += card.userData.value; // value отрицательное
+                
+                if (gameState.health <= 0) {
+                    gameOver();
+                    return;
+                }
             } else {
-                showNotification(`Недостаточно очков! Нужно: ${gameState.upgradeCost}`, 'error');
+                // Положительная карточка - дает способность
+                gameState.score += Math.abs(card.userData.value);
+                
+                // Случайная способность
+                const abilities = ['doubleBullets', 'spreadShot', 'rapidFire', 'extraPlayers'];
+                const randomAbility = abilities[Math.floor(Math.random() * abilities.length)];
+                
+                if (randomAbility === 'extraPlayers') {
+                    gameState.players = Math.min(gameState.players + 1, 3);
+                    gameState.abilities.extraPlayers = gameState.players - 1;
+                    showAbilityNotification('Дополнительный игрок!');
+                } else if (randomAbility === 'doubleBullets') {
+                    gameState.abilities.doubleBullets = true;
+                    showAbilityNotification('Двойные пули!');
+                } else if (randomAbility === 'spreadShot') {
+                    gameState.abilities.spreadShot = true;
+                    showAbilityNotification('Разброс пуль!');
+                } else if (randomAbility === 'rapidFire') {
+                    gameState.fireRateMultiplier *= 1.5;
+                    showAbilityNotification('Скорострельность увеличена!');
+                }
+                
+                // Увеличение скорости с каждой положительной карточкой
+                gameState.speedMultiplier *= 1.05;
             }
+            
+            updateUI();
+            updateOtherPlayers();
         }
         
-        // Показ уведомления
-        function showNotification(message, type) {
-            notificationText.textContent = message;
+        // Показать уведомление о способности
+        function showAbilityNotification(text) {
+            abilityNotification.textContent = text;
+            abilityNotification.style.display = 'block';
             
-            // Установка цвета в зависимости от типа
-            if (type === 1) {
-                notification.style.borderLeftColor = '#ff6b6b';
-            } else if (type === 2) {
-                notification.style.borderLeftColor = '#4ecdc4';
-            } else if (type === 3) {
-                notification.style.borderLeftColor = '#ffe66d';
-            } else if (type === 'upgrade') {
-                notification.style.borderLeftColor = '#4cc9f0';
-            } else if (type === 'error') {
-                notification.style.borderLeftColor = '#f72585';
-            }
-            
-            notification.classList.add('show');
-            
-            // Скрытие уведомления через 3 секунды
             setTimeout(() => {
-                notification.classList.remove('show');
-            }, 3000);
+                abilityNotification.style.display = 'none';
+            }, 2000);
         }
         
-        // Случайная стрельба по панелям при нажатии кнопки
-        function randomShoot() {
-            const randomPanel = Math.floor(Math.random() * 3) + 1;
-            shootAtPanel(randomPanel);
+        // Обновление UI
+        function updateUI() {
+            scoreElement.textContent = gameState.score;
+            speedElement.textContent = gameState.speedMultiplier.toFixed(1) + 'x';
+            playersElement.textContent = gameState.players;
+            fireRateElement.textContent = Math.floor(1000 / (GAME_CONFIG.fireRate / gameState.fireRateMultiplier));
+            bulletDamageElement.textContent = gameState.bulletDamage;
         }
         
-        // Обработчики событий
-        shootBtn.addEventListener('click', randomShoot);
-        
-        upgradeBtn.addEventListener('click', upgradeWeapon);
-        
-        // Обработчики для кликов по панелям
-        panels.forEach((panel, index) => {
-            panel.addEventListener('click', () => {
-                shootAtPanel(index + 1);
+        // Обновление списка карточек в UI
+        function updateCardsUI() {
+            cardsListElement.innerHTML = '';
+            
+            // Сортировка карточек по расстоянию
+            const sortedCards = [...cards].sort((a, b) => {
+                return a.position.z - b.position.z;
             });
-        });
+            
+            // Показываем только ближайшие 3 карточки
+            const nearestCards = sortedCards.slice(0, 3);
+            
+            nearestCards.forEach(card => {
+                const distance = Math.floor(card.position.z - player.position.z);
+                const cardElement = document.createElement('div');
+                cardElement.className = `card-info ${card.userData.isNegative ? 'card-negative' : 'card-positive'}`;
+                cardElement.textContent = `${card.userData.value} (${distance}м)`;
+                cardsListElement.appendChild(cardElement);
+            });
+        }
         
-        // Кнопка меню в Telegram
-        tg.MainButton.onClick(function() {
-            showNotification(`Сила: ${gameState.strength} | Ловкость: ${gameState.agility} | Интеллект: ${gameState.intelligence}`, 'upgrade');
-        });
+        // Конец игры
+        function gameOver() {
+            gameState.gameOver = true;
+            finalScoreElement.textContent = gameState.score;
+            cardsCollectedElement.textContent = gameState.cardsCollected;
+            gameOverScreen.style.display = 'flex';
+        }
+        
+        // Игровой цикл
+        function gameLoop() {
+            if (!gameState.gameOver) {
+                // Движение игрока вперед
+                player.position.z += GAME_CONFIG.playerSpeed * gameState.speedMultiplier;
+                
+                // Плавное перемещение между полосами
+                const targetX = (targetLane - 1) * GAME_CONFIG.laneWidth;
+                player.position.x += (targetX - player.position.x) * 0.1;
+                
+                // Обновление камеры (следует за игроком)
+                camera.position.z = player.position.z + 20;
+                camera.position.x = player.position.x;
+                camera.lookAt(player.position.x, player.position.y + 5, player.position.z);
+                
+                // Обновление пуль
+                updateBullets();
+                
+                // Обновление UI карточек
+                updateCardsUI();
+                
+                // Проверка столкновения с карточками
+                checkCardCollisions();
+            }
+            
+            renderer.render(scene, camera);
+            requestAnimationFrame(gameLoop);
+        }
+        
+        // Проверка столкновений с карточками
+        function checkCardCollisions() {
+            for (let i = cards.length - 1; i >= 0; i--) {
+                const card = cards[i];
+                const distance = player.position.distanceTo(card.position);
+                
+                // Если игрок коснулся карточки
+                if (distance < 2) {
+                    collectCard(card);
+                    cards.splice(i, 1);
+                    scene.remove(card);
+                }
+            }
+        }
+        
+        // Настройка управления
+        function setupControls() {
+            // Клавиатура
+            window.addEventListener('keydown', (e) => {
+                keys[e.key.toLowerCase()] = true;
+                
+                if (e.key === 'ArrowLeft' || e.key === 'a') {
+                    targetLane = Math.max(0, targetLane - 1);
+                } else if (e.key === 'ArrowRight' || e.key === 'd') {
+                    targetLane = Math.min(GAME_CONFIG.laneCount - 1, targetLane + 1);
+                }
+            });
+            
+            window.addEventListener('keyup', (e) => {
+                keys[e.key.toLowerCase()] = false;
+            });
+            
+            // Сенсорное управление
+            const joystick = document.getElementById('joystick');
+            const joystickArea = document.querySelector('.joystick-area');
+            
+            joystickArea.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                joystickActive = true;
+                touchStartX = e.touches[0].clientX;
+                touchStartY = e.touches[0].clientY;
+            });
+            
+            joystickArea.addEventListener('touchmove', (e) => {
+                e.preventDefault();
+                if (!joystickActive) return;
+                
+                const touchX = e.touches[0].clientX;
+                const touchY = e.touches[0].clientY;
+                
+                const deltaX = touchX - touchStartX;
+                const deltaY = touchY - touchStartY;
+                
+                // Ограничение движения джойстика
+                const maxDistance = 40;
+                const distance = Math.min(Math.sqrt(deltaX * deltaX + deltaY * deltaY), maxDistance);
+                const angle = Math.atan2(deltaY, deltaX);
+                
+                joystick.style.left = `${30 + Math.cos(angle) * distance}px`;
+                joystick.style.top = `${30 + Math.sin(angle) * distance}px`;
+                
+                // Определение направления
+                if (Math.abs(deltaX) > Math.abs(deltaY)) {
+                    if (deltaX > 20 && targetLane < GAME_CONFIG.laneCount - 1) {
+                        targetLane++;
+                        touchStartX = touchX; // Сброс для следующего движения
+                    } else if (deltaX < -20 && targetLane > 0) {
+                        targetLane--;
+                        touchStartX = touchX;
+                    }
+                }
+            });
+            
+            joystickArea.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                joystickActive = false;
+                joystick.style.left = '30px';
+                joystick.style.top = '30px';
+            });
+            
+            // Кнопки рестарта
+            restartBtn.addEventListener('click', restartGame);
+            
+            // Адаптация к размеру окна
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+            
+            // Мобильные кнопки
+            const mobileButtons = ['btn-left', 'btn-right', 'btn-up', 'btn-down'];
+            mobileButtons.forEach(btnId => {
+                const btn = document.getElementById(btnId);
+                btn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    if (btnId === 'btn-left') targetLane = Math.max(0, targetLane - 1);
+                    if (btnId === 'btn-right') targetLane = Math.min(GAME_CONFIG.laneCount - 1, targetLane + 1);
+                });
+            });
+        }
+        
+        // Перезапуск игры
+        function restartGame() {
+            // Сброс состояния
+            gameState.score = 0;
+            gameState.health = GAME_CONFIG.initialHealth;
+            gameState.players = 1;
+            gameState.fireRateMultiplier = 1;
+            gameState.bulletDamage = 1;
+            gameState.speedMultiplier = 1;
+            gameState.cardsCollected = 0;
+            gameState.gameOver = false;
+            gameState.abilities = {
+                doubleBullets: false,
+                spreadShot: false,
+                rapidFire: false,
+                extraPlayers: 0
+            };
+            
+            // Очистка сцены
+            while(scene.children.length > 0){ 
+                scene.remove(scene.children[0]); 
+            }
+            
+            // Очистка массивов
+            bullets = [];
+            cards = [];
+            otherPlayers = [];
+            
+            // Скрытие экрана окончания игры
+            gameOverScreen.style.display = 'none';
+            
+            // Переинициализация
+            init();
+        }
         
         // Запуск игры при загрузке
-        document.addEventListener('DOMContentLoaded', initGame);
-        
-        // Бесконечная игра - генерация новых значений каждые 10 секунд
-        setInterval(() => {
-            if (Math.random() > 0.7) { // 30% chance
-                generateNewPanelValues();
-                showNotification('Значения на панелях обновлены!', 'upgrade');
-            }
-        }, 10000);
+        window.addEventListener('load', init);
     </script>
 </body>
 </html>
