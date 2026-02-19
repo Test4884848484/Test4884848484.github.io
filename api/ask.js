@@ -1,7 +1,7 @@
 // Vercel API роут — пересылает запрос на ваш ПК через ngrok
 // Поставьте ваш ngrok URL в NGROK_URL ниже
 
-const NGROK_URL = process.env.NGROK_URL || "https://ВАШ-NGROK-URL.ngrok-free.app";
+const NGROK_URL = process.env.NGROK_URL || "https://test4884848484-github-io.vercel.app/";
 
 export default async function handler(req, res) {
     res.setHeader("Access-Control-Allow-Origin", "*");
