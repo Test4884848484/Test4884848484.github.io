@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claude Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: #0f0f0f;
+            color: #e0e0e0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        header {
+            padding: 16px 24px;
+            background: #1a1a1a;
+            border-bottom: 1px solid #2a2a2a;
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+        #chat {
+            flex: 1;
+            overflow-y: auto;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .msg {
+            max-width: 75%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .msg.user {
+            background: #2563eb;
+            color: #fff;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .msg.claude {
+            background: #1e1e1e;
+            color: #e0e0e0;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #2a2a2a;
+        }
+        .msg.error {
+            background: #3b1a1a;
+            color: #f87171;
+            align-self: flex-start;
+            border: 1px solid #5a2020;
+        }
+        .typing {
+            display: flex;
+            gap: 5px;
+            padding: 14px 18px;
+            background: #1e1e1e;
+            border-radius: 16px;
+            border-bottom-left-radius: 4px;
+            align-self: flex-start;
+            border: 1px solid #2a2a2a;
+        }
+        .typing span {
+            width: 8px; height: 8px;
+            background: #888;
+            border-radius: 50%;
+            animation: bounce 1.2s infinite;
+        }
+        .typing span:nth-child(2) { animation-delay: 0.2s; }
+        .typing span:nth-child(3) { animation-delay: 0.4s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: translateY(0); opacity: 0.5; }
+            40% { transform: translateY(-6px); opacity: 1; }
+        }
+        #input-area {
+            padding: 16px 24px;
+            background: #1a1a1a;
+            border-top: 1px solid #2a2a2a;
+            display: flex;
+            gap: 12px;
+        }
+        #input {
+            flex: 1;
+            padding: 12px 16px;
+            background: #2a2a2a;
+            border: 1px solid #3a3a3a;
+            border-radius: 12px;
+            color: #e0e0e0;
+            font-size: 15px;
+            resize: none;
+            outline: none;
+            max-height: 120px;
+        }
+        #input:focus { border-color: #2563eb; }
+        #send {
+            padding: 12px 20px;
+            background: #2563eb;
+            color: #fff;
+            border: none;
+            border-radius: 12px;
+            font-size: 15px;
+            cursor: pointer;
+            transition: background 0.2s;
+            align-self: flex-end;
+        }
+        #send:hover { background: #1d4ed8; }
+        #send:disabled { background: #374151; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <header>🤖 Claude Chat</header>
+    <div id="chat">
+        <div class="msg claude">Привет! Я Claude. Задай любой вопрос.</div>
+    </div>
+    <div id="input-area">
+        <textarea id="input" placeholder="Напиши вопрос..." rows="1"></textarea>
+        <button id="send">Отправить</button>
+    </div>
+
+    <script>
+        const chat = document.getElementById("chat");
+        const input = document.getElementById("input");
+        const sendBtn = document.getElementById("send");
+
+        // Автоматически расширяем textarea
+        input.addEventListener("input", () => {
+            input.style.height = "auto";
+            input.style.height = input.scrollHeight + "px";
+        });
+
+        // Отправка по Enter (Shift+Enter = новая строка)
+        input.addEventListener("keydown", (e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                send();
+            }
+        });
+
+        sendBtn.addEventListener("click", send);
+
+        function addMsg(text, type) {
+            const div = document.createElement("div");
+            div.className = `msg ${type}`;
+            div.textContent = text;
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+            return div;
+        }
+
+        function showTyping() {
+            const div = document.createElement("div");
+            div.className = "typing";
+            div.id = "typing";
+            div.innerHTML = "<span></span><span></span><span></span>";
+            chat.appendChild(div);
+            chat.scrollTop = chat.scrollHeight;
+        }
+
+        function hideTyping() {
+            const t = document.getElementById("typing");
+            if (t) t.remove();
+        }
+
+        async function send() {
+            const question = input.value.trim();
+            if (!question || sendBtn.disabled) return;
+
+            input.value = "";
+            input.style.height = "auto";
+            addMsg(question, "user");
+
+            sendBtn.disabled = true;
+            showTyping();
+
+            try {
+                const res = await fetch("/api/ask", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ question }),
+                });
+
+                const data = await res.json();
+                hideTyping();
+
+                if (data.answer) {
+                    addMsg(data.answer, "claude");
+                } else {
+                    addMsg(data.error || "Что-то пошло не так", "error");
+                }
+            } catch (err) {
+                hideTyping();
+                addMsg("Ошибка соединения с сервером", "error");
+            }
+
+            sendBtn.disabled = false;
+            input.focus();
+        }
+    </script>
+</body>
+</html>
