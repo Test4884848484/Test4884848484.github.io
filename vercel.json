@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/ask", "destination": "/api/ask.js" },
+    { "source": "/api/poll", "destination": "/api/poll.js" },
+    { "source": "/api/result", "destination": "/api/result.js" },
+    { "source": "/api/status", "destination": "/api/status.js" }
+  ]
+}
