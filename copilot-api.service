@@ -1,0 +1,19 @@
+[Unit]
+Description=Copilot Web API (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/copilot-bot
+ExecStart=/usr/bin/python3 -m uvicorn api:app --host 127.0.0.1 --port 8001
+Restart=always
+RestartSec=5
+
+# Логи
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=copilot-api
+
+[Install]
+WantedBy=multi-user.target
